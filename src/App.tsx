@@ -7,11 +7,14 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* หน้าหลัก */}
+        {/* หน้าหลัก (Public) */}
         <Route path="/" element={<LandingPage />} />
 
-        {/* หน้า Login */}
+        {/* หน้า Login (Admin) */}
         <Route path="/login" element={<LoginPage />} />
+
+        {/* Admin Dashboard (ล็อกอินแล้วถึงเข้าได้ - ทำทีหลัง) */}
+        {/* <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
       </Routes>
     </Router>
   );

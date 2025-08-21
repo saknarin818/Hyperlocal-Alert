@@ -1,5 +1,5 @@
 import React from "react";
 
 const About: React.FC = () => {
-  return <div>สวัสดี</div>;
+  return <div>สวัสดีครับ</div>;
 };

@@ -1,19 +1,18 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
-  AppBar,
-  Toolbar,
   Typography,
   Button,
   Container,
   Card,
   CardContent,
-  Stack,
   Box,
 } from "@mui/material";
 import WarningIcon from "@mui/icons-material/Warning";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+
+import Navbar from "../components/Navbar"; // ✅ import navbar
 
 export default function LandingPage() {
   const features = [
@@ -25,21 +24,8 @@ export default function LandingPage() {
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Navbar */}
-      <AppBar position="static" color="default" elevation={1}>
-        <Toolbar sx={{ justifyContent: "space-between" }}>
-          <Typography variant="h6" color="primary">
-            Community Alert
-          </Typography>
-          <Stack direction="row" spacing={2} sx={{ display: { xs: "none", md: "flex" } }}>
-            {features.map((f) => (
-              <Button key={f.href} component={Link} to={f.href}>
-                {f.title}
-              </Button>
-            ))}
-          </Stack>
-        </Toolbar>
-      </AppBar>
+      {/* ✅ Navbar ที่แยกเป็น component */}
+      <Navbar />
 
       {/* Hero */}
       <Box
@@ -66,7 +52,7 @@ export default function LandingPage() {
         </Button>
       </Box>
 
-      {/* Feature Grid using flexbox */}
+      {/* Features */}
       <Container sx={{ py: 10 }}>
         <Box
           sx={{
@@ -76,15 +62,7 @@ export default function LandingPage() {
           }}
         >
           {features.map((f) => (
-            <Card
-              key={f.href}
-              sx={{
-                minWidth: 0,
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-              }}
-            >
+            <Card key={f.href} sx={{ minWidth: 0, display: "flex", flexDirection: "column", height: "100%" }}>
               <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
                 <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
                   {f.icon} {f.title}

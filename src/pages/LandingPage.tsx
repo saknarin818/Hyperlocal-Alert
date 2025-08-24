@@ -177,9 +177,9 @@ export default function LandingPage() {
                         textTransform: "none",
                         transition: "all 0.3s",
                         "&:hover": {
-                          borderColor: "success.main",
-                          backgroundColor: "success.light",
-                          color: "success.dark",
+                          borderColor: "primary.main",
+                          backgroundColor: "primary.light",
+                          color: "primary.dark",
                         },
                       }}
                     >
@@ -192,7 +192,6 @@ export default function LandingPage() {
           ))}
         </Box>
       </Container>
-
 
       {/* Footer */}
       <Box sx={{ py: 4, textAlign: "center", bgcolor: "#f3f4f6", mt: "auto" }}>

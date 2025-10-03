@@ -177,9 +177,9 @@ export default function LandingPage() {
                         textTransform: "none",
                         transition: "all 0.3s",
                         "&:hover": {
-                          borderColor: "success.main",
-                          backgroundColor: "success.light",
-                          color: "success.dark",
+                          borderColor: "primary.main",
+                          backgroundColor: "primary.light",
+                          color: "primary.dark",
                         },
                       }}
                     >

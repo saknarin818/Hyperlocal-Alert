@@ -193,7 +193,6 @@ export default function LandingPage() {
         </Box>
       </Container>
 
-
       {/* Footer */}
       <Box sx={{ py: 4, textAlign: "center", bgcolor: "#f3f4f6", mt: "auto" }}>
         <Typography variant="body2" color="textSecondary">

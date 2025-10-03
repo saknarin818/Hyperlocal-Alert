@@ -28,7 +28,13 @@ const Navbar: React.FC = () => {
     <>
       <AppBar position="static" color="default" elevation={1}>
         <Toolbar sx={{ justifyContent: "space-between" }}>
-          <Typography variant="h6" color="primary">
+          <Typography
+            variant="h6"
+            color="primary"
+            component={Link}
+            to="/"
+            sx={{ textDecoration: "none", cursor: "pointer" }}
+          >
             Community Alert
           </Typography>
           <Stack

@@ -1,6 +1,8 @@
 // src/App.tsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
+import ReportIncidentPage from "./pages/ReportIncidentPage";
+
 // import AboutPage from "./pages/AboutPage";
 
 function App() {
@@ -10,6 +12,7 @@ function App() {
         {/* หน้าหลัก (Public) */}
         <Route path="/" element={<LandingPage />} />
 
+        <Route path="/report" element={<ReportIncidentPage />} />
         {/* <Route path="/about" element={<AboutPage />} /> */}
 
         {/* หน้า Login (Admin) */}

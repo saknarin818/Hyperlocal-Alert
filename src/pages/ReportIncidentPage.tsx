@@ -142,7 +142,7 @@ export default function ReportIncidentPage() {
               <Button
                 type="button"
                 variant="outlined"
-                color="primary"
+                color="warning" // เปลี่ยนจาก primary เป็น warning
                 fullWidth
                 sx={{ mt: 2, borderRadius: "2rem" }}
                 onClick={() => setForm({ type: "", description: "", location: "", contact: "" })}

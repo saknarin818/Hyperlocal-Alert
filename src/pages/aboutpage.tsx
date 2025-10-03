@@ -1,6 +1,5 @@
 import React from "react";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const About: React.FC = () => {
-  return <div>สวัสดี</div>;
+const AboutPage: React.FC = () => {
+  return <h1>นี่คือหน้าแนะนำระบบ</h1>;
 };

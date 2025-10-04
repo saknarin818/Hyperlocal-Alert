@@ -10,6 +10,9 @@ import {
 } from "@mui/material";
 import Navbar from "../components/Navbar";
 import { motion } from "framer-motion";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+
+import L from "leaflet";
 
 const incidentTypes = [
   { value: "fire", label: "ไฟไหม้" },
@@ -17,6 +20,27 @@ const incidentTypes = [
   { value: "crime", label: "อาชญากรรม" },
   { value: "other", label: "อื่น ๆ" },
 ];
+
+// ตั้งค่าไอคอนของ Marker (ป้องกัน error ไอคอนไม่แสดง)
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
+  iconUrl: require("leaflet/dist/images/marker-icon.png"),
+  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
+});
+
+function LocationPicker({
+  setPosition,
+}: {
+  setPosition: (pos: [number, number]) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      setPosition([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+  return null;
+}
 
 export default function ReportIncidentPage() {
   const [form, setForm] = useState({
@@ -26,58 +50,27 @@ export default function ReportIncidentPage() {
     contact: "",
   });
 
+  const [position, setPosition] = useState<[number, number] | null>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("ส่งข้อมูลเรียบร้อยแล้ว!");
+    alert(
+      `ส่งข้อมูลเรียบร้อยแล้ว!\n\nพิกัด: ${
+        position ? position.join(", ") : "ไม่ได้เลือก"
+      }`
+    );
     setForm({ type: "", description: "", location: "", contact: "" });
+    setPosition(null);
   };
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Navbar />
 
-      {/* Hero Section */}
-      {/* <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1 }}
-      >
-        <Box
-          sx={{
-            flex: 1,
-            background: "linear-gradient(to right, #ebf8ff, #dbeafe)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            textAlign: "center",
-            py: 8,
-            px: 2,
-          }}
-        >
-          <Typography
-            variant="h3"
-            component="h2"
-            gutterBottom
-            sx={{
-              fontWeight: "bold",
-              mb: 2,
-              color: "#1e3a8a",
-            }}
-          >
-            แจ้งเหตุการณ์
-          </Typography>
-          <Typography variant="body1" sx={{ maxWidth: 600, mb: 4 }}>
-            โปรดกรอกรายละเอียดเหตุการณ์ที่ต้องการแจ้ง ระบบจะส่งข้อมูลไปยังผู้เกี่ยวข้องในพื้นที่ของคุณ
-          </Typography>
-        </Box>
-      </motion.div> */}
-
-      {/* Form Section */}
       <Container maxWidth="sm" sx={{ py: 6 }}>
         <motion.div
           initial={{ opacity: 0, y: 40 }}
@@ -102,6 +95,7 @@ export default function ReportIncidentPage() {
                   </MenuItem>
                 ))}
               </TextField>
+
               <TextField
                 label="รายละเอียดเหตุการณ์"
                 name="description"
@@ -113,8 +107,9 @@ export default function ReportIncidentPage() {
                 rows={3}
                 margin="normal"
               />
+
               <TextField
-                label="สถานที่เกิดเหตุ"
+                label="สถานที่เกิดเหตุ (คำอธิบาย)"
                 name="location"
                 value={form.location}
                 onChange={handleChange}
@@ -122,6 +117,31 @@ export default function ReportIncidentPage() {
                 required
                 margin="normal"
               />
+
+              {/* 🗺️ แผนที่เลือกจุด */}
+              {/* <Box
+                sx={{
+                  width: "100%",
+                  height: { xs: 250, sm: 300 },
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  mt: 2,
+                }}
+              >
+                <MapContainer
+                  center={[18.7953, 98.9986]} // ค่าเริ่มต้น (เชียงใหม่)
+                  zoom={13}
+                  style={{ height: "300px", borderRadius: "12px" }}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
+                  />
+                  <LocationPicker setPosition={setPosition} />
+                  {position && <Marker position={position}></Marker>}
+                </MapContainer>
+              </Box> */}
+
               <TextField
                 label="ข้อมูลติดต่อ (ถ้ามี)"
                 name="contact"
@@ -130,6 +150,7 @@ export default function ReportIncidentPage() {
                 fullWidth
                 margin="normal"
               />
+
               <Button
                 type="submit"
                 variant="contained"
@@ -139,23 +160,33 @@ export default function ReportIncidentPage() {
               >
                 ส่งข้อมูล
               </Button>
+
               <Button
                 type="button"
                 variant="outlined"
-                color="warning" // เปลี่ยนจาก primary เป็น warning
+                color="warning"
                 fullWidth
                 sx={{ mt: 2, borderRadius: "2rem" }}
-                onClick={() => setForm({ type: "", description: "", location: "", contact: "" })}
+                onClick={() => {
+                  setForm({
+                    type: "",
+                    description: "",
+                    location: "",
+                    contact: "",
+                  });
+                  setPosition(null);
+                }}
               >
                 ล้างข้อมูล
               </Button>
+
               <Button
                 type="button"
                 variant="text"
                 color="primary"
                 fullWidth
                 sx={{ mt: 3, borderRadius: "2rem" }}
-                onClick={() => window.location.href = "/"}
+                onClick={() => (window.location.href = "/")}
               >
                 กลับหน้าหลัก
               </Button>
@@ -164,7 +195,6 @@ export default function ReportIncidentPage() {
         </motion.div>
       </Container>
 
-      {/* Footer */}
       <Box sx={{ py: 4, textAlign: "center", bgcolor: "#f3f4f6", mt: "auto" }}>
         <Typography variant="body2" color="textSecondary">
           © 2025 Hyperlocal Community Alert System

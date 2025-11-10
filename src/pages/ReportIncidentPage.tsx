@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Typography,
@@ -8,12 +8,12 @@ import {
   Paper,
   MenuItem,
 } from "@mui/material";
-import Navbar from "../components/Navbar";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-
 import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
+// ประเภทเหตุการณ์
 const incidentTypes = [
   { value: "fire", label: "ไฟไหม้" },
   { value: "accident", label: "อุบัติเหตุ" },
@@ -21,7 +21,7 @@ const incidentTypes = [
   { value: "other", label: "อื่น ๆ" },
 ];
 
-// ตั้งค่าไอคอนของ Marker (ป้องกัน error ไอคอนไม่แสดง)
+// ตั้งค่า Marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -29,11 +29,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
-function LocationPicker({
-  setPosition,
-}: {
-  setPosition: (pos: [number, number]) => void;
-}) {
+// Component สำหรับเลือกพิกัด
+function LocationPicker({ setPosition }: { setPosition: (pos: [number, number]) => void }) {
   useMapEvents({
     click(e) {
       setPosition([e.latlng.lat, e.latlng.lng]);
@@ -52,32 +49,95 @@ export default function ReportIncidentPage() {
 
   const [position, setPosition] = useState<[number, number] | null>(null);
 
+  // สถานะรูปถ่าย
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Reverse geocoding
+  useEffect(() => {
+    const fetchAddress = async () => {
+      if (!position) return;
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${position[0]}&lon=${position[1]}&format=json&accept-language=th`,
+          {
+            headers: {
+              "User-Agent": "Hyperlocal-Alert-System/1.0 (your@email.com)",
+            },
+          }
+        );
+        const data = await res.json();
+        if (data?.display_name) {
+          setForm((prev) => ({ ...prev, location: data.display_name }));
+        }
+      } catch (error) {
+        console.error("Error fetching address:", error);
+      }
+    };
+    fetchAddress();
+  }, [position]);
+
+  // handle form change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // handle image upload
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file)); // สร้าง preview
+  };
+
+  // handle submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     alert(
-      `ส่งข้อมูลเรียบร้อยแล้ว!\n\nพิกัด: ${
+      `ส่งข้อมูลเรียบร้อยแล้ว!\n\nประเภท: ${form.type}\nพิกัด: ${
         position ? position.join(", ") : "ไม่ได้เลือก"
-      }`
+      }\nสถานที่: ${form.location}\nมีรูปภาพ: ${imageFile ? imageFile.name : "ไม่มี"}`
     );
     setForm({ type: "", description: "", location: "", contact: "" });
     setPosition(null);
+    setImageFile(null);
+    setPreviewUrl(null);
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <Navbar />
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        backgroundImage: `url("/images/bgreport.jpg")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+        position: "relative",
+      }}
+    >
+      {/* Overlay */}
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: "rgba(255,255,255,0.2)",
+          zIndex: 0,
+        }}
+      />
 
-      <Container maxWidth="sm" sx={{ py: 6 }}>
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-        >
-          <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
+      <Container maxWidth="sm" sx={{ py: 6, position: "relative", zIndex: 1 }}>
+        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+          <Paper
+            elevation={5}
+            sx={{
+              p: 4,
+              borderRadius: 3,
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(6px)",
+            }}
+          >
             <Box component="form" onSubmit={handleSubmit} noValidate>
               <TextField
                 select
@@ -118,8 +178,30 @@ export default function ReportIncidentPage() {
                 margin="normal"
               />
 
-              {/* 🗺️ แผนที่เลือกจุด */}
-              {/* <Box
+              {/* Upload รูปถ่าย */}
+              <Button
+                variant="contained"
+                component="label"
+                fullWidth
+                sx={{ mt: 2, borderRadius: "2rem" }}
+              >
+                อัปโหลดรูปภาพ
+                <input type="file" accept="image/*" hidden onChange={handleImageChange} />
+              </Button>
+
+              {/* แสดง preview */}
+              {previewUrl && (
+                <Box sx={{ mt: 2, textAlign: "center" }}>
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    style={{ maxWidth: "100%", maxHeight: 200, borderRadius: 12 }}
+                  />
+                </Box>
+              )}
+
+              {/* แผนที่ */}
+              <Box
                 sx={{
                   width: "100%",
                   height: { xs: 250, sm: 300 },
@@ -129,8 +211,8 @@ export default function ReportIncidentPage() {
                 }}
               >
                 <MapContainer
-                  center={[18.7953, 98.9986]} // ค่าเริ่มต้น (เชียงใหม่)
-                  zoom={13}
+                  center={[18.8976, 99.0157]}
+                  zoom={15}
                   style={{ height: "300px", borderRadius: "12px" }}
                 >
                   <TileLayer
@@ -140,7 +222,7 @@ export default function ReportIncidentPage() {
                   <LocationPicker setPosition={setPosition} />
                   {position && <Marker position={position}></Marker>}
                 </MapContainer>
-              </Box> */}
+              </Box>
 
               <TextField
                 label="ข้อมูลติดต่อ (ถ้ามี)"
@@ -151,13 +233,7 @@ export default function ReportIncidentPage() {
                 margin="normal"
               />
 
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                fullWidth
-                sx={{ mt: 3, borderRadius: "2rem" }}
-              >
+              <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 3, borderRadius: "2rem" }}>
                 ส่งข้อมูล
               </Button>
 
@@ -168,13 +244,10 @@ export default function ReportIncidentPage() {
                 fullWidth
                 sx={{ mt: 2, borderRadius: "2rem" }}
                 onClick={() => {
-                  setForm({
-                    type: "",
-                    description: "",
-                    location: "",
-                    contact: "",
-                  });
+                  setForm({ type: "", description: "", location: "", contact: "" });
                   setPosition(null);
+                  setImageFile(null);
+                  setPreviewUrl(null);
                 }}
               >
                 ล้างข้อมูล
@@ -194,12 +267,6 @@ export default function ReportIncidentPage() {
           </Paper>
         </motion.div>
       </Container>
-
-      <Box sx={{ py: 4, textAlign: "center", bgcolor: "#f3f4f6", mt: "auto" }}>
-        <Typography variant="body2" color="textSecondary">
-          © 2025 Hyperlocal Community Alert System
-        </Typography>
-      </Box>
     </Box>
   );
 }

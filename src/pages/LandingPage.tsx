@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import {
   Typography,
@@ -7,29 +7,16 @@ import {
   Card,
   CardContent,
   Box,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  IconButton,
+  AppBar,
+  Toolbar,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import WarningIcon from "@mui/icons-material/Warning";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import NotificationsIcon from "@mui/icons-material/Notifications";
-import { motion, AnimatePresence } from "framer-motion";
-
-import Navbar from "../components/Navbar";
+import WarningIcon from "@mui/icons-material/Warning";
+import { motion } from "framer-motion";
 
 export default function LandingPage() {
-  const [openAbout, setOpenAbout] = useState(false);
-
   const features = [
-    {
-      title: "แนะนำระบบ",
-      desc: "รู้จักระบบแจ้งเหตุชุมชน",
-      action: () => setOpenAbout(true),
-      icon: <WarningIcon color="primary" />,
-    },
     {
       title: "ดูเหตุการณ์",
       desc: "ติดตามเหตุการณ์ในพื้นที่",
@@ -39,7 +26,7 @@ export default function LandingPage() {
     {
       title: "เช็คประวัติเหตุการณ์",
       desc: "ดูประวัติการแจ้งเหตุย้อนหลัง",
-      href: "/report",
+      href: "/ddd",
       icon: <VisibilityIcon color="primary" />,
     },
     {
@@ -51,104 +38,231 @@ export default function LandingPage() {
   ];
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Navbar */}
-      <Navbar />
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+        position: "relative",
+        backgroundImage: `url("/images/background.jpg")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }}
+    >
+      {/* 🔹 Overlay โปร่ง */}
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: "rgba(255,255,255,0.15)",
+          zIndex: 0,
+        }}
+      />
 
-      {/* Hero Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1 }}
+      {/* 🔹 Navbar เฉพาะหน้านี้ */}
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          backgroundColor: "rgba(255,255,255,0.7)",
+          backdropFilter: "blur(8px)",
+          color: "#1e3a8a",
+          zIndex: 10,
+        }}
       >
-        <Box
-          sx={{
-            flex: 1,
-            background: "linear-gradient(to right, #ebf8ff, #dbeafe)", // ✅ กลับมาใช้สีเดิม
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            textAlign: "center",
-            py: 10,
-            px: 2,
-          }}
-        >
+        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
           <Typography
-            variant="h3"
-            component="h2"
-            gutterBottom
+            variant="h6"
             sx={{
               fontWeight: "bold",
-              mb: 2,
-              color: "#1e3a8a", // ✅ ใช้สีน้ำเงินเข้มแทน gradient
+              color: "#1e3a8a",
+              textShadow: "0 1px 2px rgba(0,0,0,0.1)",
             }}
           >
-            ระบบแจ้งเตือนเหตุการณ์เฉพาะพื้นที่
+            Community Alert
           </Typography>
-          <Typography variant="body1" sx={{ maxWidth: 600, mb: 4 }}>
-            ติดตามเหตุการณ์แบบเรียลไทม์ แจ้งเหตุได้ทันที พร้อมรับการแจ้งเตือนในพื้นที่ของคุณ
-          </Typography>
-          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              variant="contained"
-              color="primary"
-              component={Link}
-              to="/report"
-              sx={{
-                px: 6,
-                py: 2,
-                borderRadius: "2rem",
-              }}
-            >
-              แจ้งเหตุทันที
-            </Button>
-          </motion.div>
-        </Box>
-      </motion.div>
 
-      <Container sx={{ py: 10 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
-            gap: 4,
-          }}
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <Button color="inherit" component={Link} to="/">
+              หน้าแรก
+            </Button>
+            <Button color="inherit" component={Link} to="/report">
+              แจ้งเหตุ
+            </Button>
+            <Button color="inherit" component={Link} to="/events">
+              ดูเหตุการณ์
+            </Button>
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* ✅ Main Content */}
+      <Box
+        sx={{
+          position: "relative",
+          zIndex: 1,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          pt: 10, // เว้นพื้นที่ Navbar
+        }}
+      >
+        {/* 🔹 Hero Section (ข้อความเด่น) */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1 }}
         >
-          {features.map((f, i) => (
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              py: 12,
+              px: 2,
+              position: "relative",
+            }}
+          >
+            {/* พื้นหลังเบลอหลังข้อความ */}
+            <Box
+              sx={{
+                position: "absolute",
+                width: "90%",
+                maxWidth: 800,
+                height: "auto",
+                background:
+                  "linear-gradient(to bottom right, rgba(255,255,255,0.6), rgba(255,255,255,0.3))",
+                borderRadius: 3,
+                filter: "blur(8px)",
+                zIndex: 0,
+              }}
+            />
+
             <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.15, type: "spring", stiffness: 80 }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1.2, ease: "easeOut" }}
+              style={{ position: "relative", zIndex: 1 }}
             >
-              <Card
+              <Typography
+                variant="h2"
+                component="h1"
+                gutterBottom
                 sx={{
-                  minWidth: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    boxShadow: 6, // เงาเพิ่มขึ้นเวลา hover
-                  },
+                  fontWeight: 800,
+                  color: "#0f172a",
+                  textShadow: "2px 2px 8px rgba(255,255,255,0.8)",
+                  mb: 3,
+                  letterSpacing: "0.02em",
                 }}
               >
-                <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                  <Typography
-                    variant="h6"
-                    sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
-                  >
-                    {f.icon} {f.title}
-                  </Typography>
-                  <Typography variant="body2" sx={{ flexGrow: 1 }}>
-                    {f.desc}
-                  </Typography>
+                ระบบแจ้งเตือนเหตุการณ์เฉพาะพื้นที่
+              </Typography>
 
-                  {f.href ? (
+              <Typography
+                variant="h6"
+                sx={{
+                  maxWidth: 700,
+                  mx: "auto",
+                  color: "#1e293b",
+                  textShadow: "1px 1px 6px rgba(255,255,255,0.9)",
+                  lineHeight: 1.6,
+                  fontWeight: 500,
+                  mb: 5,
+                }}
+              >
+                ติดตามเหตุการณ์แบบเรียลไทม์ แจ้งเหตุได้ทันที พร้อมรับการแจ้งเตือนในพื้นที่ของคุณ
+              </Typography>
+
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  component={Link}
+                  to="/report"
+                  startIcon={<WarningIcon />}
+                  sx={{
+                    px: 6,
+                    py: 2,
+                    borderRadius: "2rem",
+                    fontSize: "1.1rem",
+                    fontWeight: 600,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      boxShadow: "0 6px 16px rgba(0,0,0,0.3)",
+                      transform: "translateY(-2px)",
+                    },
+                  }}
+                >
+                  แจ้งเหตุทันที
+                </Button>
+              </motion.div>
+            </motion.div>
+          </Box>
+        </motion.div>
+
+        {/* 🔹 Features Section */}
+        <Container sx={{ py: 10 }}>
+          <Box
+            sx={{
+              display: "grid",
+              justifyContent: "center",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(auto-fill, minmax(280px, 1fr))",
+                md: "repeat(auto-fill, minmax(300px, 1fr))",
+              },
+              gap: 4,
+              maxWidth: "1100px",
+              mx: "auto",
+            }}
+          >
+            {features.map((f, i) => (
+              <motion.div
+                key={f.title}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  delay: i * 0.15,
+                  type: "spring",
+                  stiffness: 80,
+                }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Card
+                  sx={{
+                    minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                    borderRadius: 3,
+                    transition: "all 0.3s ease",
+                    "&:hover": { boxShadow: 6 },
+                  }}
+                >
+                  <CardContent
+                    sx={{ flex: 1, display: "flex", flexDirection: "column" }}
+                  >
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mb: 1,
+                      }}
+                    >
+                      {f.icon} {f.title}
+                    </Typography>
+                    <Typography variant="body2" sx={{ flexGrow: 1 }}>
+                      {f.desc}
+                    </Typography>
                     <Button
                       component={Link}
                       to={f.href}
@@ -167,80 +281,27 @@ export default function LandingPage() {
                     >
                       ไปยังหน้า
                     </Button>
-                  ) : (
-                    <Button
-                      onClick={f.action}
-                      variant="outlined"
-                      sx={{
-                        mt: 2,
-                        borderRadius: "999px",
-                        textTransform: "none",
-                        transition: "all 0.3s",
-                        "&:hover": {
-                          borderColor: "primary.main",
-                          backgroundColor: "primary.light",
-                          color: "primary.dark",
-                        },
-                      }}
-                    >
-                      ดูรายละเอียด
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </Box>
+        </Container>
+
+        {/* ✅ Footer อยู่ล่างเสมอ */}
+        <Box
+          sx={{
+            py: 4,
+            textAlign: "center",
+            bgcolor: "rgba(255,255,255,0.7)",
+            mt: "auto",
+          }}
+        >
+          <Typography variant="body2" color="textSecondary">
+            © 2025 Hyperlocal Community Alert System
+          </Typography>
         </Box>
-      </Container>
-
-      {/* Footer */}
-      <Box sx={{ py: 4, textAlign: "center", bgcolor: "#f3f4f6", mt: "auto" }}>
-        <Typography variant="body2" color="textSecondary">
-          © 2025 Hyperlocal Community Alert System
-        </Typography>
       </Box>
-
-      {/* Modal About */}
-      <AnimatePresence>
-        {openAbout && (
-          <Dialog
-            open={openAbout}
-            onClose={() => setOpenAbout(false)}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{ sx: { overflow: "hidden", borderRadius: 4 } }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.4 }}
-            >
-              <DialogTitle>
-                เกี่ยวกับระบบ
-                <IconButton
-                  aria-label="close"
-                  onClick={() => setOpenAbout(false)}
-                  sx={{ position: "absolute", right: 8, top: 8 }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </DialogTitle>
-              <DialogContent dividers>
-                <Typography gutterBottom>
-                  ระบบแจ้งเหตุชุมชน (Community Alert System) ถูกออกแบบมาเพื่อช่วยให้ประชาชน
-                  สามารถรายงานเหตุการณ์ต่าง ๆ ได้อย่างสะดวกและรวดเร็ว
-                </Typography>
-                <Typography gutterBottom>
-                  ระบบนี้ยังช่วยให้ทุกคนสามารถติดตามสถานการณ์ล่าสุดในชุมชน
-                  และรับการแจ้งเตือนผ่านช่องทางที่สะดวก เช่น อีเมล หรือไลน์
-                  เพื่อเพิ่มความปลอดภัยและความอุ่นใจในชีวิตประจำวัน
-                </Typography>
-              </DialogContent>
-            </motion.div>
-          </Dialog>
-        )}
-      </AnimatePresence>
     </Box>
   );
 }

@@ -4,7 +4,7 @@ import { AppBar, Toolbar, Typography, Button, Stack } from "@mui/material";
 
 const Navbar: React.FC = () => {
   const links = [
-    { title: "ดูเหตุการณ์", href: "/events" },
+    { title: "ดูเหตุการณ์", href: "/event" },
     { title: "เช็คประวัติเหตุการณ์", href: "/ddd" },
     { title: "สมัครรับแจ้งเตือน", href: "/subscribe" },
   ];

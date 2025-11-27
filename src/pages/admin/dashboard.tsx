@@ -13,10 +13,10 @@ import {
   TableRow,
   Chip,
   CircularProgress,
-  IconButton, // <-- เพิ่ม
+  IconButton,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete"; // <-- เพิ่ม
-import CheckCircleIcon from "@mui/icons-material/CheckCircle"; // <-- เพิ่ม
+import DeleteIcon from "@mui/icons-material/Delete";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
 import { signOut } from "firebase/auth";
@@ -26,9 +26,9 @@ import {
   query,
   orderBy,
   Timestamp,
-  doc, // <-- เพิ่ม
-  updateDoc, // <-- เพิ่ม
-  deleteDoc, // <-- เพิ่ม
+  doc,
+  updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 
 // สร้าง Type สำหรับข้อมูลเหตุการณ์
@@ -37,6 +37,7 @@ interface Incident {
   type: string;
   description: string;
   location: string;
+  contact?: string; // <-- เพิ่ม contact
   status: "กำลังตรวจสอบ" | "เสร็จสิ้น";
   createdAt: Timestamp;
 }
@@ -77,7 +78,6 @@ export default function AdminDashboard() {
     const incidentRef = doc(db, "incidents", id);
     try {
       await updateDoc(incidentRef, { status: "เสร็จสิ้น" });
-      // อัปเดต state ในหน้าเว็บทันที ไม่ต้องโหลดใหม่
       setIncidents(
         incidents.map((inc) =>
           inc.id === id ? { ...inc, status: "เสร็จสิ้น" } : inc
@@ -94,7 +94,6 @@ export default function AdminDashboard() {
       const incidentRef = doc(db, "incidents", id);
       try {
         await deleteDoc(incidentRef);
-        // อัปเดต state ในหน้าเว็บทันที โดยการกรองอันที่ลบออกไป
         setIncidents(incidents.filter((inc) => inc.id !== id));
       } catch (error) {
         console.error("Error deleting incident: ", error);
@@ -147,9 +146,10 @@ export default function AdminDashboard() {
                     <TableCell>ประเภท</TableCell>
                     <TableCell>รายละเอียด</TableCell>
                     <TableCell>สถานที่</TableCell>
+                    <TableCell>ข้อมูลติดต่อ</TableCell> {/* เพิ่มคอลัมน์ */}
                     <TableCell align="center">สถานะ</TableCell>
                     <TableCell>เวลาที่แจ้ง</TableCell>
-                    <TableCell align="center">จัดการ</TableCell> {/* <-- เพิ่มคอลัมน์ */}
+                    <TableCell align="center">จัดการ</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -161,6 +161,7 @@ export default function AdminDashboard() {
                       <TableCell component="th" scope="row">{row.type}</TableCell>
                       <TableCell>{row.description}</TableCell>
                       <TableCell>{row.location}</TableCell>
+                      <TableCell>{row.contact || "-"}</TableCell> {/* แสดง contact */}
                       <TableCell align="center">
                         <Chip
                           label={row.status}
@@ -171,7 +172,7 @@ export default function AdminDashboard() {
                       <TableCell>
                         {row.createdAt.toDate().toLocaleString("th-TH")}
                       </TableCell>
-                      <TableCell align="center"> {/* <-- เพิ่ม Cell สำหรับปุ่ม */}
+                      <TableCell align="center">
                         {row.status === "กำลังตรวจสอบ" && (
                           <IconButton
                             color="success"

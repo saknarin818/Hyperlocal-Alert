@@ -13,7 +13,10 @@ import {
   TableRow,
   Chip,
   CircularProgress,
+  IconButton, // <-- เพิ่ม
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete"; // <-- เพิ่ม
+import CheckCircleIcon from "@mui/icons-material/CheckCircle"; // <-- เพิ่ม
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
 import { signOut } from "firebase/auth";
@@ -23,6 +26,9 @@ import {
   query,
   orderBy,
   Timestamp,
+  doc, // <-- เพิ่ม
+  updateDoc, // <-- เพิ่ม
+  deleteDoc, // <-- เพิ่ม
 } from "firebase/firestore";
 
 // สร้าง Type สำหรับข้อมูลเหตุการณ์
@@ -45,24 +51,56 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   // ดึงข้อมูลเหตุการณ์จาก Firestore
+  const fetchIncidents = async () => {
+    setLoading(true);
+    try {
+      const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const incidentsData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Incident[];
+      setIncidents(incidentsData);
+    } catch (error) {
+      console.error("Error fetching incidents: ", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchIncidents = async () => {
-      try {
-        const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
-        const incidentsData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Incident[];
-        setIncidents(incidentsData);
-      } catch (error) {
-        console.error("Error fetching incidents: ", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchIncidents();
   }, []);
+
+  // ฟังก์ชันอนุมัติเหตุการณ์
+  const handleApprove = async (id: string) => {
+    const incidentRef = doc(db, "incidents", id);
+    try {
+      await updateDoc(incidentRef, { status: "เสร็จสิ้น" });
+      // อัปเดต state ในหน้าเว็บทันที ไม่ต้องโหลดใหม่
+      setIncidents(
+        incidents.map((inc) =>
+          inc.id === id ? { ...inc, status: "เสร็จสิ้น" } : inc
+        )
+      );
+    } catch (error) {
+      console.error("Error approving incident: ", error);
+    }
+  };
+
+  // ฟังก์ชันลบเหตุการณ์
+  const handleDelete = async (id: string) => {
+    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบเหตุการณ์นี้?")) {
+      const incidentRef = doc(db, "incidents", id);
+      try {
+        await deleteDoc(incidentRef);
+        // อัปเดต state ในหน้าเว็บทันที โดยการกรองอันที่ลบออกไป
+        setIncidents(incidents.filter((inc) => inc.id !== id));
+      } catch (error) {
+        console.error("Error deleting incident: ", error);
+      }
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -111,6 +149,7 @@ export default function AdminDashboard() {
                     <TableCell>สถานที่</TableCell>
                     <TableCell align="center">สถานะ</TableCell>
                     <TableCell>เวลาที่แจ้ง</TableCell>
+                    <TableCell align="center">จัดการ</TableCell> {/* <-- เพิ่มคอลัมน์ */}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -119,9 +158,7 @@ export default function AdminDashboard() {
                       key={row.id}
                       sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
                     >
-                      <TableCell component="th" scope="row">
-                        {row.type}
-                      </TableCell>
+                      <TableCell component="th" scope="row">{row.type}</TableCell>
                       <TableCell>{row.description}</TableCell>
                       <TableCell>{row.location}</TableCell>
                       <TableCell align="center">
@@ -133,6 +170,24 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>
                         {row.createdAt.toDate().toLocaleString("th-TH")}
+                      </TableCell>
+                      <TableCell align="center"> {/* <-- เพิ่ม Cell สำหรับปุ่ม */}
+                        {row.status === "กำลังตรวจสอบ" && (
+                          <IconButton
+                            color="success"
+                            onClick={() => handleApprove(row.id)}
+                            aria-label="approve"
+                          >
+                            <CheckCircleIcon />
+                          </IconButton>
+                        )}
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDelete(row.id)}
+                          aria-label="delete"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))}

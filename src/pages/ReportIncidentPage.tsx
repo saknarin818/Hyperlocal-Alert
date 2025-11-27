@@ -10,6 +10,9 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+// เพิ่ม import สำหรับ Firebase
+import { db } from "../firebase";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -48,8 +51,9 @@ export default function ReportIncidentPage() {
   });
 
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const [loading, setLoading] = useState(false); // เพิ่ม state สำหรับ loading
 
-  // สถานะรูปถ่าย
+  // สถานะรูปถ่าย (ยังไม่ได้ใช้งานจริง)
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -91,17 +95,38 @@ export default function ReportIncidentPage() {
   };
 
   // handle submit
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(
-      `ส่งข้อมูลเรียบร้อยแล้ว!\n\nประเภท: ${form.type}\nพิกัด: ${
-        position ? position.join(", ") : "ไม่ได้เลือก"
-      }\nสถานที่: ${form.location}\nมีรูปภาพ: ${imageFile ? imageFile.name : "ไม่มี"}`
-    );
-    setForm({ type: "", description: "", location: "", contact: "" });
-    setPosition(null);
-    setImageFile(null);
-    setPreviewUrl(null);
+    if (!form.type || !form.description || !form.location) {
+      alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (ประเภท, รายละเอียด, สถานที่)");
+      return;
+    }
+    setLoading(true);
+
+    try {
+      // ส่งข้อมูลไปที่ collection ชื่อ 'incidents'
+      await addDoc(collection(db, "incidents"), {
+        type: form.type,
+        description: form.description,
+        location: form.location,
+        contact: form.contact,
+        coordinates: position, // บันทึกพิกัด
+        createdAt: Timestamp.now(), // บันทึกเวลาที่สร้าง
+        status: "กำลังตรวจสอบ", // เพิ่มสถานะเริ่มต้น
+      });
+
+      alert("ส่งข้อมูลเรียบร้อยแล้ว!");
+      // ล้างฟอร์ม
+      setForm({ type: "", description: "", location: "", contact: "" });
+      setPosition(null);
+      setImageFile(null);
+      setPreviewUrl(null);
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -233,8 +258,15 @@ export default function ReportIncidentPage() {
                 margin="normal"
               />
 
-              <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 3, borderRadius: "2rem" }}>
-                ส่งข้อมูล
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                fullWidth
+                sx={{ mt: 3, borderRadius: "2rem" }}
+                disabled={loading} // ปิดปุ่มตอนกำลังโหลด
+              >
+                {loading ? "กำลังส่ง..." : "ส่งข้อมูล"}
               </Button>
 
               <Button

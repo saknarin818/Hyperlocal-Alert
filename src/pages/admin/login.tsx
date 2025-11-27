@@ -7,25 +7,34 @@ import {
   Typography,
   Paper,
 } from "@mui/material";
-// เปลี่ยนจาก next/router เป็น react-router-dom
 import { useNavigate } from "react-router-dom";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../firebase";
 
 export default function AdminLoginPage() {
-  // เปลี่ยน useRouter เป็น useNavigate
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    // ยังไม่เชื่อม Database — Mock login ก่อน
-    if (email === "admin@alert.com" && password === "123456") {
-      // เปลี่ยน router.push เป็น navigate
-      navigate("/admin/dashboard"); // ไปหน้า dashboard
-    } else {
-      setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate("/admin/dashboard");
+    } catch (err: any) {
+      if (err.code === "auth/invalid-credential") {
+        setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+      } else {
+        setError("เกิดข้อผิดพลาดในการล็อกอิน");
+      }
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,8 +97,9 @@ export default function AdminLoginPage() {
               borderRadius: "999px",
               fontWeight: "bold",
             }}
+            disabled={loading}
           >
-            เข้าสู่ระบบ
+            {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </Button>
         </form>
       </Paper>

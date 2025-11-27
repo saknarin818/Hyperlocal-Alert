@@ -6,6 +6,7 @@ import ReportIncidentPage from "./pages/ReportIncidentPage";
 import AdminLoginPage from "./pages/admin/login";
 // import component หน้า dashboard
 import AdminDashboard from "./pages/admin/dashboard";
+import Historypage from "./pages/Historypage";
 
 // import AboutPage from "./pages/AboutPage";
 
@@ -24,6 +25,8 @@ function App() {
 
         {/* Admin Dashboard (ล็อกอินแล้วถึงเข้าได้ - ทำทีหลัง) */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+        <Route path="/history" element={<Historypage />} />
       </Routes>
     </Router>
   );

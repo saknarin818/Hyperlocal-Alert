@@ -60,7 +60,7 @@ export default function LandingPage() {
         }}
       />
 
-      {/* 🔹 Navbar เฉพาะหน้านี้ */}
+      {/* 🔹 Navbar */}
       <AppBar
         position="fixed"
         elevation={0}

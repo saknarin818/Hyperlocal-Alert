@@ -7,7 +7,7 @@ import AdminLoginPage from "./pages/admin/login";
 // import component หน้า dashboard
 import AdminDashboard from "./pages/admin/dashboard";
 import Historypage from "./pages/Historypage";
-
+// import EventsPage from "./pages/EventsPage";
 // import AboutPage from "./pages/AboutPage";
 
 function App() {
@@ -27,6 +27,8 @@ function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
         <Route path="/history" element={<Historypage />} />
+        
+        {/* <Route path="/events" element={<EventsPage />} /> */}
       </Routes>
     </Router>
   );

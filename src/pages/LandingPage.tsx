@@ -26,7 +26,7 @@ export default function LandingPage() {
     {
       title: "เช็คประวัติเหตุการณ์",
       desc: "ดูประวัติการแจ้งเหตุย้อนหลัง",
-      href: "/ddd",
+      href: "/history",
       icon: <VisibilityIcon color="primary" />,
     },
     {

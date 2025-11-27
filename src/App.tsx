@@ -6,8 +6,10 @@ import ReportIncidentPage from "./pages/ReportIncidentPage";
 import AdminLoginPage from "./pages/admin/login";
 // import component หน้า dashboard
 import AdminDashboard from "./pages/admin/dashboard";
-
+import Historypage from "./pages/Historypage";
+// import EventsPage from "./pages/EventsPage";
 // import AboutPage from "./pages/AboutPage";
+import EventPage from "./pages/EventPage";
 
 function App() {
   return (
@@ -24,6 +26,12 @@ function App() {
 
         {/* Admin Dashboard (ล็อกอินแล้วถึงเข้าได้ - ทำทีหลัง) */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+        <Route path="/history" element={<Historypage />} />
+
+        <Route path="/event" element={<EventPage />} />
+        
+        {/* <Route path="/events" element={<EventsPage />} /> */}
       </Routes>
     </Router>
   );

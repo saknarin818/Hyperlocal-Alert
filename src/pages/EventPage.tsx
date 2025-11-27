@@ -102,17 +102,10 @@ export default function EventPage() {
                   📍 {ev.location}
                 </Typography>
 
-<<<<<<< HEAD
-              {/* ข้อมูลติดต่อ */}
-              <Typography variant="body2" color="text.secondary">
-                📞 ติดต่อเพื่อสอบถามข้อมูลเท่านั้น!!! : {ev.contact || "-"}
-              </Typography>
-=======
                 {/* ข้อมูลติดต่อ */}
                 <Typography variant="body2" color="text.secondary">
                   📞 ติดต่อเพื่อสอบถามข้อมูลเท่านั้น! : {ev.contact || "-"}
                 </Typography>
->>>>>>> upstream/develop
 
                 {/* เวลา */}
                 <Typography variant="caption" color="text.secondary">

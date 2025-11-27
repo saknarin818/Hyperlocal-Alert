@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-// เพิ่ม import สำหรับ Firebase
+// นำเข้าเฉพาะ db ไม่ต้องใช้ storage
 import { db } from "../firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import L from "leaflet";
@@ -51,11 +51,7 @@ export default function ReportIncidentPage() {
   });
 
   const [position, setPosition] = useState<[number, number] | null>(null);
-  const [loading, setLoading] = useState(false); // เพิ่ม state สำหรับ loading
-
-  // สถานะรูปถ่าย (ยังไม่ได้ใช้งานจริง)
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Reverse geocoding
   useEffect(() => {
@@ -63,12 +59,7 @@ export default function ReportIncidentPage() {
       if (!position) return;
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${position[0]}&lon=${position[1]}&format=json&accept-language=th`,
-          {
-            headers: {
-              "User-Agent": "Hyperlocal-Alert-System/1.0 (your@email.com)",
-            },
-          }
+          `https://nominatim.openstreetmap.org/reverse?lat=${position[0]}&lon=${position[1]}&format=json&accept-language=th`
         );
         const data = await res.json();
         if (data?.display_name) {
@@ -86,14 +77,6 @@ export default function ReportIncidentPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // handle image upload
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-    setImageFile(file);
-    setPreviewUrl(URL.createObjectURL(file)); // สร้าง preview
-  };
-
   // handle submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,23 +87,21 @@ export default function ReportIncidentPage() {
     setLoading(true);
 
     try {
-      // ส่งข้อมูลไปที่ collection ชื่อ 'incidents'
+      // บันทึกข้อมูลทั้งหมดลง Firestore (ไม่มีส่วนของรูปภาพ)
       await addDoc(collection(db, "incidents"), {
         type: form.type,
         description: form.description,
         location: form.location,
         contact: form.contact,
-        coordinates: position, // บันทึกพิกัด
-        createdAt: Timestamp.now(), // บันทึกเวลาที่สร้าง
-        status: "กำลังตรวจสอบ", // เพิ่มสถานะเริ่มต้น
+        coordinates: position,
+        createdAt: Timestamp.now(),
+        status: "กำลังตรวจสอบ",
       });
 
       alert("ส่งข้อมูลเรียบร้อยแล้ว!");
       // ล้างฟอร์ม
       setForm({ type: "", description: "", location: "", contact: "" });
       setPosition(null);
-      setImageFile(null);
-      setPreviewUrl(null);
     } catch (error) {
       console.error("Error adding document: ", error);
       alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
@@ -203,28 +184,6 @@ export default function ReportIncidentPage() {
                 margin="normal"
               />
 
-              {/* Upload รูปถ่าย */}
-              <Button
-                variant="contained"
-                component="label"
-                fullWidth
-                sx={{ mt: 2, borderRadius: "2rem" }}
-              >
-                อัปโหลดรูปภาพ
-                <input type="file" accept="image/*" hidden onChange={handleImageChange} />
-              </Button>
-
-              {/* แสดง preview */}
-              {previewUrl && (
-                <Box sx={{ mt: 2, textAlign: "center" }}>
-                  <img
-                    src={previewUrl}
-                    alt="Preview"
-                    style={{ maxWidth: "100%", maxHeight: 200, borderRadius: 12 }}
-                  />
-                </Box>
-              )}
-
               {/* แผนที่ */}
               <Box
                 sx={{
@@ -264,7 +223,7 @@ export default function ReportIncidentPage() {
                 color="primary"
                 fullWidth
                 sx={{ mt: 3, borderRadius: "2rem" }}
-                disabled={loading} // ปิดปุ่มตอนกำลังโหลด
+                disabled={loading}
               >
                 {loading ? "กำลังส่ง..." : "ส่งข้อมูล"}
               </Button>
@@ -278,8 +237,6 @@ export default function ReportIncidentPage() {
                 onClick={() => {
                   setForm({ type: "", description: "", location: "", contact: "" });
                   setPosition(null);
-                  setImageFile(null);
-                  setPreviewUrl(null);
                 }}
               >
                 ล้างข้อมูล

@@ -20,7 +20,7 @@ export default function LandingPage() {
     {
       title: "ดูเหตุการณ์",
       desc: "ติดตามเหตุการณ์ในพื้นที่",
-      href: "/events",
+      href: "/event",
       icon: <VisibilityIcon color="primary" />,
     },
     {
@@ -60,7 +60,7 @@ export default function LandingPage() {
         }}
       />
 
-      {/* 🔹 Navbar เฉพาะหน้านี้ */}
+      {/* 🔹 Navbar */}
       <AppBar
         position="fixed"
         elevation={0}
@@ -90,7 +90,7 @@ export default function LandingPage() {
             <Button color="inherit" component={Link} to="/report">
               แจ้งเหตุ
             </Button>
-            <Button color="inherit" component={Link} to="/events">
+            <Button color="inherit" component={Link} to="/event">
               ดูเหตุการณ์
             </Button>
           </Box>

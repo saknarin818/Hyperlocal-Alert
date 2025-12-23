@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Container, Typography, Paper } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import Navbar from "../components/Navbar";
 import { motion } from "framer-motion";
 import { Bar } from "react-chartjs-2";
@@ -10,12 +11,18 @@ import {
   BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
 } from "chart.js";
-import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "../firebase";
 
-// ลงทะเบียน components ที่จำเป็นสำหรับ Chart.js
+// Chart.js register
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -25,7 +32,6 @@ ChartJS.register(
   Legend
 );
 
-// สร้าง Type สำหรับข้อมูลเหตุการณ์ (เหมือนกับใน dashboard)
 interface Incident {
   id: string;
   type: string;
@@ -35,35 +41,24 @@ interface Incident {
   createdAt: Timestamp;
 }
 
-// ประมวลผลข้อมูลเพื่อสร้างกราฟ
 const processDataForChart = (incidents: Incident[]) => {
-  const counts: { [key: string]: number } = {};
-  incidents.forEach((incident) => {
-    counts[incident.type] = (counts[incident.type] || 0) + 1;
+  const counts: Record<string, number> = {};
+  incidents.forEach((i) => {
+    counts[i.type] = (counts[i.type] || 0) + 1;
   });
 
-  const labels = Object.keys(counts);
-  const data = Object.values(counts);
-
   return {
-    labels,
+    labels: Object.keys(counts),
     datasets: [
       {
         label: "จำนวนเหตุการณ์",
-        data,
+        data: Object.values(counts),
         backgroundColor: [
-          "rgba(255, 99, 132, 0.6)",
-          "rgba(54, 162, 235, 0.6)",
-          "rgba(255, 206, 86, 0.6)",
-          "rgba(75, 192, 192, 0.6)",
-          "rgba(153, 102, 255, 0.6)",
-        ],
-        borderColor: [
-          "rgba(255, 99, 132, 1)",
-          "rgba(54, 162, 235, 1)",
-          "rgba(255, 206, 86, 1)",
-          "rgba(75, 192, 192, 1)",
-          "rgba(153, 102, 255, 1)",
+          "rgba(255,99,132,0.6)",
+          "rgba(54,162,235,0.6)",
+          "rgba(255,206,86,0.6)",
+          "rgba(75,192,192,0.6)",
+          "rgba(153,102,255,0.6)",
         ],
         borderWidth: 1,
       },
@@ -71,82 +66,110 @@ const processDataForChart = (incidents: Incident[]) => {
   };
 };
 
-export default function HistoryPage() {
+type HistoryPageProps = {
+  mode: "light" | "dark";
+  toggleTheme: () => void;
+};
+
+export default function HistoryPage({
+  mode,
+  toggleTheme,
+}: HistoryPageProps) {
+  const theme = useTheme();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchApprovedIncidents = async () => {
-      setLoading(true);
+    const fetchData = async () => {
       try {
         const q = query(
           collection(db, "incidents"),
           where("status", "==", "เสร็จสิ้น")
         );
-        const querySnapshot = await getDocs(q);
-        const incidentsData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Incident[];
-        setIncidents(incidentsData);
-      } catch (error) {
-        console.error("Error fetching approved incidents: ", error);
+        const snap = await getDocs(q);
+        setIncidents(
+          snap.docs.map(
+            (doc) => ({ id: doc.id, ...doc.data() }) as Incident
+          )
+        );
       } finally {
         setLoading(false);
       }
     };
-
-    fetchApprovedIncidents();
+    fetchData();
   }, []);
 
-  const chartData = processDataForChart(incidents);
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "top" as const,
-      },
-      title: {
-        display: true,
-        text: "สรุปจำนวนเหตุการณ์ตามประเภท",
-        font: {
-          size: 18,
-        },
-      },
-    },
-  };
-
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f3f4f6" }}>
-      <Navbar />
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: theme.palette.background.default,
+      }}
+    >
+      {/* ✅ Navbar เหมือนหน้าอื่น */}
+      <Navbar mode={mode} toggleTheme={toggleTheme} />
+
       <Container maxWidth="lg" sx={{ py: 6 }}>
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
         >
           <Typography
             variant="h4"
-            component="h1"
+            fontWeight="bold"
             gutterBottom
-            sx={{ fontWeight: "bold", color: "#1e3a8a", mb: 4 }}
+            sx={{ color: theme.palette.text.primary, mb: 4 }}
           >
             ประวัติและสถิติเหตุการณ์
           </Typography>
+
           <Paper
+            elevation={3}
             sx={{
-              p: { xs: 2, sm: 3 },
+              p: 3,
               borderRadius: 3,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+              bgcolor: theme.palette.background.paper,
             }}
           >
             {loading ? (
-              <Typography>กำลังโหลดข้อมูล...</Typography>
+              <Typography color="text.secondary">
+                กำลังโหลดข้อมูล...
+              </Typography>
             ) : (
-              <Box sx={{ height: { xs: 300, sm: 400 }, position: "relative" }}>
-                <Bar options={options} data={chartData} />
+              <Box sx={{ height: 400 }}>
+                <Bar
+                  data={processDataForChart(incidents)}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        labels: {
+                          color: theme.palette.text.primary,
+                        },
+                      },
+                      title: {
+                        display: true,
+                        text: "สรุปจำนวนเหตุการณ์ตามประเภท",
+                        color: theme.palette.text.primary,
+                        font: { size: 18 },
+                      },
+                    },
+                    scales: {
+                      x: {
+                        ticks: {
+                          color: theme.palette.text.secondary,
+                        },
+                      },
+                      y: {
+                        ticks: {
+                          color: theme.palette.text.secondary,
+                        },
+                      },
+                    },
+                  }}
+                />
               </Box>
             )}
           </Paper>

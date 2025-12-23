@@ -98,13 +98,19 @@ export default function ReportIncidentPage({
       alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
       return;
     }
+    // ✅ เพิ่มการตรวจสอบ position ตรงนี้
+    if (!position) {
+      alert("กรุณาเลือกตำแหน่งบนแผนที่");
+      setLoading(false); // Make sure to reset loading state if it was set before this check
+      return;
+    }
     setLoading(true);
 
     try {
       await addDoc(collection(db, "incidents"), {
         ...form,
         coordinates: position,
-        createdAt: Timestamp.now(),
+        createdAt: Timestamp.now(), // หรือเปลี่ยนเป็น serverTimestamp() ตามที่แนะนำไปก่อนหน้า
         status: "กำลังตรวจสอบ",
       });
 
@@ -112,7 +118,7 @@ export default function ReportIncidentPage({
       setForm({ type: "", description: "", location: "", contact: "" });
       setPosition(null);
     } catch (error) {
-      console.error(error);
+      console.error(error); // ✅ ตรวจสอบ error ที่ console
       alert("เกิดข้อผิดพลาด");
     } finally {
       setLoading(false);

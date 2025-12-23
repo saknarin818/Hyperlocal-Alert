@@ -10,12 +10,17 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-// นำเข้าเฉพาะ db ไม่ต้องใช้ storage
 import { db } from "../firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Navbar from "../components/Navbar";
+import { useTheme } from "@mui/material/styles";
+
+type PageProps = {
+  mode: "light" | "dark";
+  toggleTheme: () => void;
+};
 
 // ประเภทเหตุการณ์
 const incidentTypes = [
@@ -34,7 +39,11 @@ L.Icon.Default.mergeOptions({
 });
 
 // Component สำหรับเลือกพิกัด
-function LocationPicker({ setPosition }: { setPosition: (pos: [number, number]) => void }) {
+function LocationPicker({
+  setPosition,
+}: {
+  setPosition: (pos: [number, number]) => void;
+}) {
   useMapEvents({
     click(e) {
       setPosition([e.latlng.lat, e.latlng.lng]);
@@ -43,7 +52,13 @@ function LocationPicker({ setPosition }: { setPosition: (pos: [number, number]) 
   return null;
 }
 
-export default function ReportIncidentPage() {
+export default function ReportIncidentPage({
+  mode,
+  toggleTheme,
+}: PageProps) {
+
+  const theme = useTheme();
+
   const [form, setForm] = useState({
     type: "",
     description: "",
@@ -73,39 +88,32 @@ export default function ReportIncidentPage() {
     fetchAddress();
   }, [position]);
 
-  // handle form change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // handle submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.type || !form.description || !form.location) {
-      alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (ประเภท, รายละเอียด, สถานที่)");
+      alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
       return;
     }
     setLoading(true);
 
     try {
-      // บันทึกข้อมูลทั้งหมดลง Firestore (ไม่มีส่วนของรูปภาพ)
       await addDoc(collection(db, "incidents"), {
-        type: form.type,
-        description: form.description,
-        location: form.location,
-        contact: form.contact,
+        ...form,
         coordinates: position,
         createdAt: Timestamp.now(),
         status: "กำลังตรวจสอบ",
       });
 
       alert("ส่งข้อมูลเรียบร้อยแล้ว!");
-      // ล้างฟอร์ม
       setForm({ type: "", description: "", location: "", contact: "" });
       setPosition(null);
     } catch (error) {
-      console.error("Error adding document: ", error);
-      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
+      console.error(error);
+      alert("เกิดข้อผิดพลาด");
     } finally {
       setLoading(false);
     }
@@ -113,41 +121,28 @@ export default function ReportIncidentPage() {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Navbar />
+      {/* ✅ Navbar ใช้งานได้แล้ว */}
+      <Navbar mode={mode} toggleTheme={toggleTheme} />
+
       <Box
         sx={{
           flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          backgroundImage: `url("/images/bgreport.jpg")`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          position: "relative",
+          minHeight: "100vh",
+          bgcolor: "background.default",
         }}
       >
-        {/* Overlay */}
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            backgroundColor: "rgba(255,255,255,0.2)",
-            zIndex: 0,
-          }}
-        />
 
-        <Container maxWidth="sm" sx={{ py: 6, position: "relative", zIndex: 1 }}>
-          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-            <Paper
-              elevation={5}
-              sx={{
-                p: 4,
-                borderRadius: 3,
-                backgroundColor: "rgba(255, 255, 255, 0.8)",
-                backdropFilter: "blur(6px)",
-              }}
-            >
-              <Box component="form" onSubmit={handleSubmit} noValidate>
+        <Container maxWidth="sm" sx={{ py: 6, position: "relative" }}>
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Paper sx={{ p: 4, borderRadius: 3 }}>
+              <Typography variant="h5" fontWeight="bold" mb={2}>
+                แจ้งเหตุการณ์
+              </Typography>
+
+              <Box component="form" onSubmit={handleSubmit}>
                 <TextField
                   select
                   label="ประเภทเหตุการณ์"
@@ -158,15 +153,15 @@ export default function ReportIncidentPage() {
                   required
                   margin="normal"
                 >
-                  {incidentTypes.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
+                  {incidentTypes.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </MenuItem>
                   ))}
                 </TextField>
 
                 <TextField
-                  label="รายละเอียดเหตุการณ์"
+                  label="รายละเอียด"
                   name="description"
                   value={form.description}
                   onChange={handleChange}
@@ -178,7 +173,7 @@ export default function ReportIncidentPage() {
                 />
 
                 <TextField
-                  label="สถานที่เกิดเหตุ (คำอธิบาย)"
+                  label="สถานที่"
                   name="location"
                   value={form.location}
                   onChange={handleChange}
@@ -187,32 +182,20 @@ export default function ReportIncidentPage() {
                   margin="normal"
                 />
 
-                {/* แผนที่ */}
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: { xs: 250, sm: 300 },
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    mt: 2,
-                  }}
-                >
+                <Box sx={{ height: 300, mt: 2 }}>
                   <MapContainer
                     center={[18.8976, 99.0157]}
                     zoom={15}
-                    style={{ height: "300px", borderRadius: "12px" }}
+                    style={{ height: "100%" }}
                   >
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
-                    />
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                     <LocationPicker setPosition={setPosition} />
-                    {position && <Marker position={position}></Marker>}
+                    {position && <Marker position={position} />}
                   </MapContainer>
                 </Box>
 
                 <TextField
-                  label="ข้อมูลติดต่อ (ถ้ามี)"
+                  label="ข้อมูลติดต่อ"
                   name="contact"
                   value={form.contact}
                   onChange={handleChange}
@@ -223,37 +206,11 @@ export default function ReportIncidentPage() {
                 <Button
                   type="submit"
                   variant="contained"
-                  color="primary"
                   fullWidth
-                  sx={{ mt: 3, borderRadius: "2rem" }}
+                  sx={{ mt: 3 }}
                   disabled={loading}
                 >
                   {loading ? "กำลังส่ง..." : "ส่งข้อมูล"}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outlined"
-                  color="warning"
-                  fullWidth
-                  sx={{ mt: 2, borderRadius: "2rem" }}
-                  onClick={() => {
-                    setForm({ type: "", description: "", location: "", contact: "" });
-                    setPosition(null);
-                  }}
-                >
-                  ล้างข้อมูล
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="text"
-                  color="primary"
-                  fullWidth
-                  sx={{ mt: 3, borderRadius: "2rem" }}
-                  onClick={() => (window.location.href = "/")}
-                >
-                  กลับหน้าหลัก
                 </Button>
               </Box>
             </Paper>

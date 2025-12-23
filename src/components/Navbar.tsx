@@ -10,10 +10,21 @@ import {
   Menu,
   MenuItem,
   Box,
+  Tooltip,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import MenuIcon from "@mui/icons-material/Menu";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
 
-const Navbar: React.FC = () => {
+export type NavbarProps = {
+  mode: "light" | "dark";
+  toggleTheme: () => void;
+};
+
+const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
+  const theme = useTheme(); // ✅ ดึง theme ปัจจุบัน
+
   const links = [
     { title: "ดูเหตุการณ์", href: "/event" },
     { title: "เช็คประวัติเหตุการณ์", href: "/history" },
@@ -22,77 +33,99 @@ const Navbar: React.FC = () => {
 
   const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
 
-  const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElNav(event.currentTarget);
-  };
-
-  const handleCloseNavMenu = () => {
-    setAnchorElNav(null);
-  };
-
   return (
-    <AppBar position="static" color="default" elevation={1}>
+    <AppBar
+      position="sticky"
+      elevation={0}
+      sx={{
+        backdropFilter: "blur(8px)",
+        bgcolor: theme.palette.background.paper,
+        borderBottom: "1px solid",
+        borderColor: theme.palette.divider,
+      }}
+    >
       <Toolbar sx={{ justifyContent: "space-between" }}>
+        {/* Logo */}
         <Typography
-          variant="h6"
-          color="primary"
           component={Link}
           to="/"
-          sx={{ textDecoration: "none", cursor: "pointer" }}
+          variant="h6"
+          sx={{
+            textDecoration: "none",
+            fontWeight: 700,
+            color: theme.palette.text.primary, // ✅ เปลี่ยนตาม theme
+          }}
         >
           Community Alert
         </Typography>
+
+        {/* Desktop Menu */}
         <Stack
           direction="row"
           spacing={2}
+          alignItems="center"
           sx={{ display: { xs: "none", md: "flex" } }}
         >
           {links.map((link) => (
-            <Button key={link.href} component={Link} to={link.href}>
+            <Button
+              key={link.href}
+              component={Link}
+              to={link.href}
+              sx={{
+                color: theme.palette.text.primary, // ✅
+                "&:hover": {
+                  bgcolor: theme.palette.action.hover,
+                },
+              }}
+            >
               {link.title}
             </Button>
           ))}
+
+          {/* Theme Toggle */}
+          <Tooltip title="เปลี่ยนธีม">
+            <IconButton
+              onClick={toggleTheme}
+              sx={{ color: theme.palette.text.primary }} // ✅
+            >
+              {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
+          </Tooltip>
         </Stack>
 
+        {/* Mobile Menu */}
         <Box sx={{ display: { xs: "flex", md: "none" } }}>
           <IconButton
-            size="large"
-            aria-label="account of current user"
-            aria-controls="menu-appbar"
-            aria-haspopup="true"
-            onClick={handleOpenNavMenu}
-            color="inherit"
+            onClick={(e) => setAnchorElNav(e.currentTarget)}
+            sx={{ color: theme.palette.text.primary }} // ✅
           >
             <MenuIcon />
           </IconButton>
+
           <Menu
-            id="menu-appbar"
             anchorEl={anchorElNav}
-            anchorOrigin={{
-              vertical: "bottom",
-              horizontal: "left",
-            }}
-            keepMounted
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "left",
-            }}
             open={Boolean(anchorElNav)}
-            onClose={handleCloseNavMenu}
-            sx={{
-              display: { xs: "block", md: "none" },
-            }}
+            onClose={() => setAnchorElNav(null)}
           >
             {links.map((link) => (
               <MenuItem
                 key={link.href}
-                onClick={handleCloseNavMenu}
                 component={Link}
                 to={link.href}
+                onClick={() => setAnchorElNav(null)}
               >
-                <Typography textAlign="center">{link.title}</Typography>
+                {link.title}
               </MenuItem>
             ))}
+
+            <MenuItem
+              onClick={() => {
+                toggleTheme();
+                setAnchorElNav(null);
+              }}
+            >
+              {mode === "dark" ? "Light Mode ☀️" : "Dark Mode 🌙"}
+            </MenuItem>
           </Menu>
         </Box>
       </Toolbar>

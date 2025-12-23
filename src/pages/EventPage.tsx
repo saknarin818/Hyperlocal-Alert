@@ -6,38 +6,109 @@ import {
   Paper,
   Divider,
   CircularProgress,
+  Stack,
+  useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
+import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
+import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
+import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
+import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
 import { motion } from "framer-motion";
 import { db } from "../firebase";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import Navbar from "../components/Navbar";
+import { alpha } from "@mui/material/styles";
+import { where } from "firebase/firestore";
 
-export default function EventPage() {
+const EVENT_TYPE_TH: Record<string, string> = {
+  accident: "อุบัติเหตุ",
+  fire: "ไฟไหม้",
+  medical: "เหตุฉุกเฉินทางการแพทย์",
+  crime: "อาชญากรรม",
+  disaster: "ภัยพิบัติ",
+  utility: "สาธารณูปโภค",
+  flood: "น้ำท่วม",
+  electricity: "ไฟฟ้าขัดข้อง",
+  water: "น้ำประปาขัดข้อง",
+  general: "เหตุทั่วไป",
+  other: "อื่น ๆ",
+};
+
+const getTypeLabel = (type: string) =>
+  EVENT_TYPE_TH[type] || type;
+
+type EventPageProps = {
+  mode: "light" | "dark";
+  toggleTheme: () => void;
+};
+
+export default function EventPage({ mode, toggleTheme }: EventPageProps) {
+  const theme = useTheme();
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState<string>("all");
 
-  // โหลดข้อมูลจาก Firestore
   useEffect(() => {
-    const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
+  const q = query(
+    collection(db, "incidents"),
+    where("status", "==", "เสร็จสิ้น")
+  );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const data = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .sort((a: any, b: any) => {
+          const ta = a.createdAt?.toMillis?.() ?? 0;
+          const tb = b.createdAt?.toMillis?.() ?? 0;
+          return tb - ta;
+        });
+
       setEvents(data);
       setLoading(false);
-    });
+    },
+    () => setLoading(false)
+  );
 
-    return () => unsubscribe();
-  }, []);
+  return () => unsubscribe();
+}, []);
+
+  /* ✅ ดึงหมวด + เรียง other ไปล่างสุด */
+  const categories = Array.from(
+    new Set(events.map((ev) => ev.type))
+  ).sort((a, b) => {
+    if (a === "other") return 1;
+    if (b === "other") return -1;
+    return a.localeCompare(b);
+  });
+
+  /* ✅ filter ตามหมวดที่เลือก */
+  const filteredEvents =
+    selectedType === "all"
+      ? events
+      : events.filter((ev) => ev.type === selectedType);
 
   if (loading) {
     return (
       <>
-        <Navbar />
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
-          <CircularProgress />
+        <Navbar mode={mode} toggleTheme={toggleTheme} />
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "grid",
+            placeItems: "center",
+            bgcolor: "background.default",
+          }}
+        >
+          <CircularProgress size={48} />
         </Box>
       </>
     );
@@ -45,78 +116,126 @@ export default function EventPage() {
 
   return (
     <>
-      <Navbar />
+      <Navbar mode={mode} toggleTheme={toggleTheme} />
+
       <Box
         sx={{
           minHeight: "100vh",
-          py: 6,
-          backgroundColor: "#f4f6f8",
+          py: 10,
+          bgcolor: alpha(theme.palette.background.default, 0.95),
         }}
       >
         <Container maxWidth="md">
-          <Typography
-            variant="h4"
-            fontWeight="bold"
-            textAlign="center"
-            gutterBottom
-          >
-            เหตุการณ์ในพื้นที่
-          </Typography>
+          {/* Header */}
+          <Stack spacing={1.5} alignItems="center" mb={4}>
+            <ReportProblemRoundedIcon color="primary" sx={{ fontSize: 42 }} />
+            <Typography variant="h4" fontWeight={800}>
+              เหตุการณ์ในพื้นที่
+            </Typography>
+            <Typography color="text.secondary">
+              ติดตามและแจ้งเหตุการณ์แบบเรียลไทม์
+            </Typography>
+          </Stack>
 
-          {events.length === 0 && (
-            <Typography textAlign="center" mt={5}>
-              ยังไม่มีรายงานเหตุการณ์
+          {/* 🔽 Filter มุมขวาบน */}
+          <Stack direction="row" justifyContent="flex-end" mb={4}>
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: 220,
+                bgcolor: alpha(theme.palette.background.paper, 0.85),
+                borderRadius: 2,
+              }}
+            >
+              <InputLabel>หมวดเหตุการณ์</InputLabel>
+              <Select
+                label="หมวดเหตุการณ์"
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+              >
+                <MenuItem value="all">ทั้งหมด</MenuItem>
+                {categories.map((type) => (
+                  <MenuItem key={type} value={type}>
+                    {getTypeLabel(type)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+
+          {/* Empty */}
+          {filteredEvents.length === 0 && (
+            <Typography textAlign="center" color="text.secondary" mt={6}>
+              ไม่มีเหตุการณ์ในหมวดนี้
             </Typography>
           )}
 
-          {events.map((ev, index) => (
-            <motion.div
-              key={ev.id}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.05 }}
-            >
-              <Paper
-                elevation={4}
-                sx={{
-                  p: 3,
-                  mt: 3,
-                  borderRadius: 3,
-                  background: "white",
-                }}
+          {/* Event list */}
+          <Stack spacing={3}>
+            {filteredEvents.map((ev, index) => (
+              <motion.div
+                key={ev.id}
+                initial={{ opacity: 0, y: 25 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.05 }}
               >
-                {/* ประเภทเหตุการณ์ */}
-                <Typography variant="h6" fontWeight="bold" color="primary">
-                  {ev.type}
-                </Typography>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 4,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: alpha(theme.palette.background.paper, 0.9),
+                    backdropFilter: "blur(6px)",
+                    transition: "all .25s ease",
+                    "&:hover": {
+                      transform: "translateY(-4px)",
+                      boxShadow: theme.shadows[6],
+                    },
+                  }}
+                >
+                  {/* Type */}
+                  <Typography fontWeight={700} color="primary" sx={{ mb: 1 }}>
+                    {getTypeLabel(ev.type)}
+                  </Typography>
 
-                <Divider sx={{ my: 2 }} />
+                  <Divider sx={{ mb: 1.5 }} />
 
-                {/* รายละเอียด */}
-                <Typography variant="body1" sx={{ mb: 1 }}>
-                  {ev.description}
-                </Typography>
+                  {/* Description */}
+                  <Typography sx={{ mb: 1.5 }}>
+                    {ev.description}
+                  </Typography>
 
-                {/* สถานที่ */}
-                <Typography variant="body2" color="text.secondary">
-                  📍 {ev.location}
-                </Typography>
+                  {/* Meta */}
+                  <Stack spacing={0.8}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <LocationOnRoundedIcon fontSize="small" color="action" />
+                      <Typography variant="body2" color="text.secondary">
+                        {ev.location}
+                      </Typography>
+                    </Stack>
 
-                {/* ข้อมูลติดต่อ */}
-                <Typography variant="body2" color="text.secondary">
-                  📞 ติดต่อเพื่อสอบถามข้อมูลเท่านั้น! : {ev.contact || "-"}
-                </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <PhoneRoundedIcon fontSize="small" color="action" />
+                      <Typography variant="body2" color="text.secondary">
+                        {ev.contact || "-"}
+                      </Typography>
+                    </Stack>
 
-                {/* เวลา */}
-                <Typography variant="caption" color="text.secondary">
-                  🕒{" "}
-                  {ev.createdAt?.toDate
-                    ? ev.createdAt.toDate().toLocaleString("th-TH")
-                    : "-"}
-                </Typography>
-              </Paper>
-            </motion.div>
-          ))}
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <AccessTimeRoundedIcon fontSize="small" color="action" />
+                      <Typography variant="caption" color="text.secondary">
+                        {ev.createdAt?.toDate
+                          ? ev.createdAt.toDate().toLocaleString("th-TH")
+                          : "-"}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              </motion.div>
+            ))}
+          </Stack>
         </Container>
       </Box>
     </>

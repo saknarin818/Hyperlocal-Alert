@@ -99,36 +99,19 @@ export default function ReportIncidentPage({
       alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
       return;
     }
-<<<<<<< HEAD
-
-    if (!position) {
-      alert("กรุณาคลิกเลือกตำแหน่งบนแผนที่");
-      return;
-    }
-
-=======
     // ✅ เพิ่มการตรวจสอบ position ตรงนี้
     if (!position) {
       alert("กรุณาเลือกตำแหน่งบนแผนที่");
       setLoading(false); // Make sure to reset loading state if it was set before this check
       return;
     }
->>>>>>> upstream/develop
     setLoading(true);
 
     try {
       await addDoc(collection(db, "incidents"), {
         ...form,
-<<<<<<< HEAD
-        coordinates: {
-          lat: position[0],
-          lng: position[1],
-        },
-        createdAt: Timestamp.now(),
-=======
         coordinates: position,
         createdAt: Timestamp.now(), // หรือเปลี่ยนเป็น serverTimestamp() ตามที่แนะนำไปก่อนหน้า
->>>>>>> upstream/develop
         status: "กำลังตรวจสอบ",
       });
 
@@ -136,13 +119,8 @@ export default function ReportIncidentPage({
       setForm({ type: "", description: "", location: "", contact: "" });
       setPosition(null);
     } catch (error) {
-<<<<<<< HEAD
-      console.error("Firestore error:", error);
-      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
-=======
       console.error(error); // ✅ ตรวจสอบ error ที่ console
       alert("เกิดข้อผิดพลาด");
->>>>>>> upstream/develop
     } finally {
       setLoading(false);
     }

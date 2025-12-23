@@ -10,19 +10,21 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Navbar from "../components/Navbar";
 import { useTheme } from "@mui/material/styles";
 
+/* ================== TYPES ================== */
 type PageProps = {
   mode: "light" | "dark";
   toggleTheme: () => void;
 };
 
-// ประเภทเหตุการณ์
+/* ================== CONSTANTS ================== */
 const incidentTypes = [
   { value: "fire", label: "ไฟไหม้" },
   { value: "accident", label: "อุบัติเหตุ" },
@@ -30,7 +32,7 @@ const incidentTypes = [
   { value: "other", label: "อื่น ๆ" },
 ];
 
-// ตั้งค่า Marker icon
+/* ================== LEAFLET ICON FIX ================== */
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -38,7 +40,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
-// Component สำหรับเลือกพิกัด
+/* ================== LOCATION PICKER ================== */
 function LocationPicker({
   setPosition,
 }: {
@@ -52,10 +54,8 @@ function LocationPicker({
   return null;
 }
 
-export default function ReportIncidentPage({
-  mode,
-  toggleTheme,
-}: PageProps) {
+/* ================== MAIN PAGE ================== */
+export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
   const theme = useTheme();
 
   const [form, setForm] = useState({
@@ -66,12 +66,15 @@ export default function ReportIncidentPage({
   });
 
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Reverse geocoding
+  /* ========== Reverse Geocoding ========== */
   useEffect(() => {
+    if (!position) return;
+
     const fetchAddress = async () => {
-      if (!position) return;
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${position[0]}&lon=${position[1]}&format=json&accept-language=th`
@@ -80,55 +83,79 @@ export default function ReportIncidentPage({
         if (data?.display_name) {
           setForm((prev) => ({ ...prev, location: data.display_name }));
         }
-      } catch (error) {
-        console.error("Error fetching address:", error);
+      } catch (err) {
+        console.error("Reverse geocode error:", err);
       }
     };
+
     fetchAddress();
   }, [position]);
 
+  /* ========== Handlers ========== */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ✅ แก้ตรงนี้ตามที่ขอ
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!form.type || !form.description || !form.location) {
-      alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
+      alert("กรุณากรอกข้อมูลให้ครบ");
       return;
     }
 
     if (!position) {
-      alert("กรุณาคลิกเลือกตำแหน่งบนแผนที่");
+      alert("กรุณาเลือกตำแหน่งบนแผนที่");
+      return;
+    }
+
+    if (imageFile && imageFile.size > 5 * 1024 * 1024) {
+      alert("ขนาดรูปต้องไม่เกิน 5MB");
       return;
     }
 
     setLoading(true);
 
     try {
+      let imageUrl = "";
+
+      /* Upload Image */
+      if (imageFile) {
+        const imageRef = ref(
+          storage,
+          `incidents/${Date.now()}-${crypto.randomUUID()}`
+        );
+        await uploadBytes(imageRef, imageFile);
+        imageUrl = await getDownloadURL(imageRef);
+      }
+
+      /* Save Firestore */
       await addDoc(collection(db, "incidents"), {
         ...form,
+        imageUrl,
         coordinates: {
           lat: position[0],
           lng: position[1],
         },
-        createdAt: Timestamp.now(),
         status: "กำลังตรวจสอบ",
+        createdAt: Timestamp.now(),
       });
 
-      alert("ส่งข้อมูลเรียบร้อยแล้ว!");
+      alert("ส่งข้อมูลเรียบร้อยแล้ว");
+
       setForm({ type: "", description: "", location: "", contact: "" });
       setPosition(null);
+      setImageFile(null);
+      setPreview(null);
     } catch (error) {
-      console.error("Firestore error:", error);
-      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
+      console.error("Submit error:", error);
+      alert("เกิดข้อผิดพลาด");
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================== UI ================== */
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Navbar mode={mode} toggleTheme={toggleTheme} />
@@ -189,7 +216,7 @@ export default function ReportIncidentPage({
                   color="text.secondary"
                   sx={{ mt: 2 }}
                 >
-                  กรุณาคลิกบนแผนที่เพื่อเลือกตำแหน่งเหตุการณ์
+                  คลิกบนแผนที่เพื่อเลือกตำแหน่ง
                 </Typography>
 
                 <Box sx={{ height: 300, mt: 1 }}>
@@ -212,6 +239,31 @@ export default function ReportIncidentPage({
                   fullWidth
                   margin="normal"
                 />
+
+                <TextField
+                  type="file"
+                  inputProps={{ accept: "image/*" }}
+                  fullWidth
+                  margin="normal"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const files = e.target.files;
+                    if (files && files[0]) {
+                      const file = files[0];
+                      setImageFile(file);
+                      setPreview(URL.createObjectURL(file));
+                    }
+                  }}
+                />
+
+                {preview && (
+                  <Box sx={{ mt: 2, textAlign: "center" }}>
+                    <img
+                      src={preview}
+                      alt="preview"
+                      style={{ maxWidth: "100%", borderRadius: 8 }}
+                    />
+                  </Box>
+                )}
 
                 <Button
                   type="submit"

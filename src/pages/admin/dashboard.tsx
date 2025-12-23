@@ -14,11 +14,6 @@ import {
   Chip,
   CircularProgress,
   IconButton,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   TablePagination,
   Dialog,
   DialogTitle,
@@ -32,6 +27,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useNavigate } from "react-router-dom";
+
 import { auth, db } from "../../firebase";
 import { signOut } from "firebase/auth";
 import {
@@ -44,25 +40,39 @@ import {
   deleteDoc,
   Timestamp,
 } from "firebase/firestore";
+
 import Navbar from "../../components/Navbar";
+
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+/* ===================== TYPE ===================== */
 
 interface Incident {
   id: string;
   type: string;
   description: string;
   location: string;
-  contact?: string;
   status: "กำลังตรวจสอบ" | "เสร็จสิ้น";
-  createdAt?: Timestamp | any;
+  createdAt?: Timestamp;
+  imageUrl?: string; // ✅ รูปจาก Firebase Storage
   coordinates?: { lat: number; lng: number } | null;
 }
 
 type AdminDashboardProps = {
   mode: "light" | "dark";
   toggleTheme: () => void;
+};
+
+/* ===================== CONSTANT ===================== */
+
+const INCIDENT_TYPE_TH: Record<string, string> = {
+  fire: "ไฟไหม้",
+  accident: "อุบัติเหตุ",
+  flood: "น้ำท่วม",
+  crime: "อาชญากรรม",
+  other: "อื่น ๆ",
 };
 
 const getStatusColor = (status: string) =>
@@ -75,36 +85,30 @@ const defaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
+/* ===================== COMPONENT ===================== */
+
 export default function AdminDashboard({
   mode,
   toggleTheme,
 }: AdminDashboardProps) {
   const navigate = useNavigate();
+
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [openDetail, setOpenDetail] = useState(false);
-  const [detailIncident, setDetailIncident] = useState<Incident | null>(null);
+  const [detailIncident, setDetailIncident] =
+    useState<Incident | null>(null);
 
   const [snackOpen, setSnackOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState("");
   const [snackSeverity, setSnackSeverity] =
     useState<"success" | "error">("success");
 
-  // Snackbar
-  const [snackOpen, setSnackOpen] = useState(false);
-  const [snackMsg, setSnackMsg] = useState("");
-  const [snackSeverity, setSnackSeverity] = useState<
-    "success" | "info" | "warning" | "error"
-  >("success");
-
-  // Auth guard
+  /* ===================== AUTH GUARD ===================== */
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
       if (!user) navigate("/admin/login");
@@ -112,6 +116,7 @@ export default function AdminDashboard({
     return () => unsub();
   }, [navigate]);
 
+  /* ===================== FETCH DATA ===================== */
   useEffect(() => {
     const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
@@ -123,32 +128,7 @@ export default function AdminDashboard({
     return () => unsub();
   }, []);
 
-  const INCIDENT_TYPE_TH: Record<string, string> = {
-    fire: "ไฟไหม้",
-    accident: "อุบัติเหตุ",
-    flood: "น้ำท่วม",
-    crime: "อาชญากรรม",
-    other: "อื่น ๆ",
-  };
-
-  const filtered = incidents.filter((i) => {
-    if (filterType !== "all" && i.type !== filterType) return false;
-    if (filterStatus !== "all" && i.status !== filterStatus) return false;
-
-    if (search) {
-      const s = search.toLowerCase();
-      return (
-        i.description?.toLowerCase().includes(s) ||
-        i.location?.toLowerCase().includes(s)
-      );
-    }
-    return true;
-  });
-
-  const paginated = filtered.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  /* ===================== ACTION ===================== */
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -158,6 +138,7 @@ export default function AdminDashboard({
   const handleMarkDone = async (id: string) => {
     await updateDoc(doc(db, "incidents", id), { status: "เสร็จสิ้น" });
     setSnackMsg("อัปเดตสถานะเรียบร้อย");
+    setSnackSeverity("success");
     setSnackOpen(true);
   };
 
@@ -165,6 +146,7 @@ export default function AdminDashboard({
     if (!window.confirm("ต้องการลบเหตุการณ์นี้หรือไม่?")) return;
     await deleteDoc(doc(db, "incidents", id));
     setSnackMsg("ลบเหตุการณ์แล้ว");
+    setSnackSeverity("success");
     setSnackOpen(true);
   };
 
@@ -173,13 +155,22 @@ export default function AdminDashboard({
     setOpenDetail(true);
   };
 
+  /* ===================== PAGINATION ===================== */
+
+  const paginated = incidents.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
+  /* ===================== RENDER ===================== */
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <Navbar mode={mode} toggleTheme={toggleTheme} />
 
       <Container maxWidth="lg" sx={{ my: 4 }}>
         <Paper sx={{ p: 3, borderRadius: 3 }}>
-          <Typography variant="h4" mb={2} fontWeight="bold">
+          <Typography variant="h4" fontWeight="bold" mb={2}>
             Admin Dashboard
           </Typography>
 
@@ -198,6 +189,7 @@ export default function AdminDashboard({
                       <TableCell align="center">จัดการ</TableCell>
                     </TableRow>
                   </TableHead>
+
                   <TableBody>
                     {paginated.map((row) => (
                       <TableRow key={row.id}>
@@ -250,7 +242,7 @@ export default function AdminDashboard({
 
               <TablePagination
                 component="div"
-                count={filtered.length}
+                count={incidents.length}
                 page={page}
                 rowsPerPage={rowsPerPage}
                 onPageChange={(_, p) => setPage(p)}
@@ -263,19 +255,45 @@ export default function AdminDashboard({
         </Paper>
       </Container>
 
-      {/* Dialog แสดงรายละเอียด + แผนที่ */}
-      <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="md" fullWidth>
+      {/* ===================== DETAIL DIALOG ===================== */}
+      <Dialog
+        open={openDetail}
+        onClose={() => setOpenDetail(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>รายละเอียดเหตุการณ์</DialogTitle>
+
         <DialogContent dividers>
           {detailIncident && (
             <>
               <Typography fontWeight="bold" mb={1}>
-                {INCIDENT_TYPE_TH[detailIncident.type] ?? detailIncident.type}
+                {INCIDENT_TYPE_TH[detailIncident.type] ??
+                  detailIncident.type}
               </Typography>
-              <Typography>{detailIncident.description}</Typography>
 
+              <Typography mb={2}>
+                {detailIncident.description}
+              </Typography>
+
+              {/* รูป */}
+              {detailIncident.imageUrl && (
+                <Box
+                  component="img"
+                  src={detailIncident.imageUrl}
+                  sx={{
+                    width: "100%",
+                    maxHeight: 350,
+                    objectFit: "cover",
+                    borderRadius: 2,
+                    mb: 2,
+                  }}
+                />
+              )}
+
+              {/* แผนที่ */}
               {detailIncident.coordinates && (
-                <Box sx={{ height: 300, mt: 2 }}>
+                <Box sx={{ height: 300 }}>
                   <MapContainer
                     center={[
                       detailIncident.coordinates.lat,
@@ -298,13 +316,18 @@ export default function AdminDashboard({
             </>
           )}
         </DialogContent>
+
         <DialogActions>
           <Button onClick={() => setOpenDetail(false)}>ปิด</Button>
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={snackOpen} autoHideDuration={3000} onClose={() => setSnackOpen(false)}>
-        <Alert severity="success">{snackMsg}</Alert>
+      <Snackbar
+        open={snackOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackOpen(false)}
+      >
+        <Alert severity={snackSeverity}>{snackMsg}</Alert>
       </Snackbar>
     </Box>
   );

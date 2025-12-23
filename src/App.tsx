@@ -7,6 +7,7 @@ import AdminLoginPage from "./pages/admin/login";
 import AdminDashboard from "./pages/admin/dashboard";
 import Historypage from "./pages/Historypage";
 import EventPage from "./pages/EventPage";
+import SubscribePage from "./pages/SubscribePage"; // Add this line
 
 // 👉 กำหนด type ของ props
 type AppProps = {
@@ -46,6 +47,11 @@ function App({ mode, toggleTheme }: AppProps) {
         <Route
           path="/event"
           element={<EventPage mode={mode} toggleTheme={toggleTheme} />}
+        />
+
+        <Route
+          path="/subscribe" // Add this route
+          element={<SubscribePage mode={mode} toggleTheme={toggleTheme} />}
         />
 
       </Routes>

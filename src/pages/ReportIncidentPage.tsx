@@ -56,7 +56,6 @@ export default function ReportIncidentPage({
   mode,
   toggleTheme,
 }: PageProps) {
-
   const theme = useTheme();
 
   const [form, setForm] = useState({
@@ -92,25 +91,30 @@ export default function ReportIncidentPage({
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // ✅ แก้ตรงนี้ตามที่ขอ
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!form.type || !form.description || !form.location) {
       alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
       return;
     }
-    // ✅ เพิ่มการตรวจสอบ position ตรงนี้
+
     if (!position) {
-      alert("กรุณาเลือกตำแหน่งบนแผนที่");
-      setLoading(false); // Make sure to reset loading state if it was set before this check
+      alert("กรุณาคลิกเลือกตำแหน่งบนแผนที่");
       return;
     }
+
     setLoading(true);
 
     try {
       await addDoc(collection(db, "incidents"), {
         ...form,
-        coordinates: position,
-        createdAt: Timestamp.now(), // หรือเปลี่ยนเป็น serverTimestamp() ตามที่แนะนำไปก่อนหน้า
+        coordinates: {
+          lat: position[0],
+          lng: position[1],
+        },
+        createdAt: Timestamp.now(),
         status: "กำลังตรวจสอบ",
       });
 
@@ -118,8 +122,8 @@ export default function ReportIncidentPage({
       setForm({ type: "", description: "", location: "", contact: "" });
       setPosition(null);
     } catch (error) {
-      console.error(error); // ✅ ตรวจสอบ error ที่ console
-      alert("เกิดข้อผิดพลาด");
+      console.error("Firestore error:", error);
+      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
     } finally {
       setLoading(false);
     }
@@ -127,18 +131,10 @@ export default function ReportIncidentPage({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      {/* ✅ Navbar ใช้งานได้แล้ว */}
       <Navbar mode={mode} toggleTheme={toggleTheme} />
 
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: "100vh",
-          bgcolor: "background.default",
-        }}
-      >
-
-        <Container maxWidth="sm" sx={{ py: 6, position: "relative" }}>
+      <Box sx={{ flex: 1, bgcolor: "background.default" }}>
+        <Container maxWidth="sm" sx={{ py: 6 }}>
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -188,7 +184,15 @@ export default function ReportIncidentPage({
                   margin="normal"
                 />
 
-                <Box sx={{ height: 300, mt: 2 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 2 }}
+                >
+                  กรุณาคลิกบนแผนที่เพื่อเลือกตำแหน่งเหตุการณ์
+                </Typography>
+
+                <Box sx={{ height: 300, mt: 1 }}>
                   <MapContainer
                     center={[18.8976, 99.0157]}
                     zoom={15}

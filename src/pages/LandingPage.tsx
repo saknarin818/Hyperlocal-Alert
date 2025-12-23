@@ -23,6 +23,21 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { alpha } from "@mui/material/styles";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+/* FIX icon leaflet */
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-shadow.png",
+});
+
 
 /* props จาก App */
 type LandingPageProps = {
@@ -37,27 +52,45 @@ interface Incident {
   location: string;
   status?: string;
   createdAt?: Timestamp;
+  imageUrl?: string | null;
+  coordinates?: { lat: number; lng: number } | null;
 }
 
 export default function LandingPage({ mode, toggleTheme }: LandingPageProps) {
   const theme = useTheme();
-  const [latestEvents, setLatestEvents] = useState<any[]>([]);
+  const [latestEvents, setLatestEvents] = useState<Incident[]>([]);
 
   useEffect(() => {
     const q = query(
       collection(db, "incidents"),
-      orderBy("createdAt", "desc") 
+      orderBy("createdAt", "desc")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const data: Incident[] = snapshot.docs.map((doc) => {
+        const d = doc.data();
 
-      const approved = data.filter(
-        (d: any) => d.status === "เสร็จสิ้น"
-      );
+        return {
+          id: doc.id,
+          type: d.type,
+          description: d.description,
+          location: d.location,
+          status: d.status,
+          createdAt: d.createdAt,
+          imageUrl: d.imageUrl ?? null,
+          coordinates:
+            d.coordinates &&
+              typeof d.coordinates.lat === "number" &&
+              typeof d.coordinates.lng === "number"
+              ? {
+                lat: d.coordinates.lat,
+                lng: d.coordinates.lng,
+              }
+              : null,
+        };
+      });
+
+      const approved = data.filter((d) => d.status === "เสร็จสิ้น");
 
       setLatestEvents(approved.slice(0, 3));
     });
@@ -206,6 +239,44 @@ export default function LandingPage({ mode, toggleTheme }: LandingPageProps) {
                       >
                         {ev.description}
                       </Typography>
+
+                      {/* รูปภาพเหตุการณ์ */}
+                      {ev.imageUrl && (
+                        <Box
+                          component="img"
+                          src={ev.imageUrl}
+                          alt="incident"
+                          sx={{
+                            width: "100%",
+                            height: 220,
+                            objectFit: "cover",
+                            borderRadius: 2,
+                            mb: 2,
+                          }}
+                        />
+                      )}
+
+                      {/* แผนที่ */}
+                      {ev.coordinates && (
+                        <Box
+                          sx={{
+                            height: 220,
+                            mb: 2,
+                            borderRadius: 2,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <MapContainer
+                            center={[ev.coordinates.lat, ev.coordinates.lng]}
+                            zoom={14}
+                            style={{ height: "100%", width: "100%" }}
+                            scrollWheelZoom={false}
+                          >
+                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            <Marker position={[ev.coordinates.lat, ev.coordinates.lng]} />
+                          </MapContainer>
+                        </Box>
+                      )}
 
                       {/* Footer */}
                       <Box

@@ -19,7 +19,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Checkbox,
   TablePagination,
   Dialog,
   DialogTitle,
@@ -44,7 +43,6 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
-  DocumentData,
 } from "firebase/firestore";
 import Navbar from "../../components/Navbar";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
@@ -60,7 +58,6 @@ interface Incident {
   status: "กำลังตรวจสอบ" | "เสร็จสิ้น";
   createdAt?: Timestamp | any;
   coordinates?: { lat: number; lng: number } | null;
-  images?: string[];
 }
 
 type AdminDashboardProps = {
@@ -89,7 +86,6 @@ export default function AdminDashboard({
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -99,7 +95,7 @@ export default function AdminDashboard({
   const [snackOpen, setSnackOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState("");
   const [snackSeverity, setSnackSeverity] =
-    useState<"success" | "info" | "warning" | "error">("success");
+    useState<"success" | "error">("success");
 
   // Snackbar
   const [snackOpen, setSnackOpen] = useState(false);
@@ -120,9 +116,7 @@ export default function AdminDashboard({
     const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       setIncidents(
-        snap.docs.map(
-          (d) => ({ id: d.id, ...d.data() } as Incident)
-        )
+        snap.docs.map((d) => ({ id: d.id, ...d.data() } as Incident))
       );
       setLoading(false);
     });
@@ -134,10 +128,6 @@ export default function AdminDashboard({
     accident: "อุบัติเหตุ",
     flood: "น้ำท่วม",
     crime: "อาชญากรรม",
-    electricity: "ไฟฟ้าขัดข้อง",
-    water: "ประปาขัดข้อง",
-    earthquake: "แผ่นดินไหว",
-    storm: "พายุ",
     other: "อื่น ๆ",
   };
 
@@ -147,22 +137,11 @@ export default function AdminDashboard({
 
     if (search) {
       const s = search.toLowerCase();
-
-      const typeEn = i.type?.toLowerCase() ?? "";
-      const typeTh =
-        i.type && INCIDENT_TYPE_TH[i.type]
-          ? INCIDENT_TYPE_TH[i.type].toLowerCase()
-          : "";
-
       return (
-        typeEn.includes(s) ||
-        typeTh.includes(s) ||
         i.description?.toLowerCase().includes(s) ||
-        i.location?.toLowerCase().includes(s) ||
-        i.contact?.toLowerCase().includes(s)
+        i.location?.toLowerCase().includes(s)
       );
     }
-
     return true;
   });
 
@@ -176,180 +155,85 @@ export default function AdminDashboard({
     navigate("/admin/login");
   };
 
-
   const handleMarkDone = async (id: string) => {
-    try {
-      await updateDoc(doc(db, "incidents", id), {
-        status: "เสร็จสิ้น",
-      });
-      setSnackMsg("อัปเดตสถานะเป็นเสร็จสิ้นแล้ว");
-      setSnackSeverity("success");
-      setSnackOpen(true);
-    } catch (e) {
-      setSnackMsg("เกิดข้อผิดพลาด");
-      setSnackSeverity("error");
-      setSnackOpen(true);
-    }
+    await updateDoc(doc(db, "incidents", id), { status: "เสร็จสิ้น" });
+    setSnackMsg("อัปเดตสถานะเรียบร้อย");
+    setSnackOpen(true);
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("ต้องการลบเหตุการณ์นี้หรือไม่?")) return;
-    try {
-      await deleteDoc(doc(db, "incidents", id));
-      setSnackMsg("ลบเหตุการณ์เรียบร้อย");
-      setSnackSeverity("success");
-      setSnackOpen(true);
-    } catch (e) {
-      setSnackMsg("ลบไม่สำเร็จ");
-      setSnackSeverity("error");
-      setSnackOpen(true);
-    }
+    await deleteDoc(doc(db, "incidents", id));
+    setSnackMsg("ลบเหตุการณ์แล้ว");
+    setSnackOpen(true);
+  };
+
+  const handleViewDetail = (incident: Incident) => {
+    setDetailIncident(incident);
+    setOpenDetail(true);
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        bgcolor: "background.default",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <Navbar mode={mode} toggleTheme={toggleTheme} />
 
       <Container maxWidth="lg" sx={{ my: 4 }}>
-        <Paper
-          sx={{
-            p: 3,
-            borderRadius: 3,
-            bgcolor: "background.paper",
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              mb: 3,
-            }}
-          >
-            <Typography variant="h4" fontWeight="bold">
-              Admin Dashboard
-            </Typography>
-            <Button color="error" variant="contained" onClick={handleLogout}>
-              ออกจากระบบ
-            </Button>
-          </Box>
-
-          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
-            <TextField
-              size="small"
-              placeholder="ค้นหา..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: 280 }}
-            />
-
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel>ประเภท</InputLabel>
-              <Select
-                label="ประเภท"
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-              >
-                <MenuItem value="all">ทั้งหมด</MenuItem>
-
-                {Array.from(
-                  new Set(
-                    incidents
-                      .map((i) => i.type)
-                      .filter((t): t is string => Boolean(t))
-                  )
-                ).map((t) => (
-                  <MenuItem key={t} value={t}>
-                    {INCIDENT_TYPE_TH[t] ?? t}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>สถานะ</InputLabel>
-              <Select
-                label="สถานะ"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <MenuItem value="all">ทั้งหมด</MenuItem>
-                <MenuItem value="กำลังตรวจสอบ">กำลังตรวจสอบ</MenuItem>
-                <MenuItem value="เสร็จสิ้น">เสร็จสิ้น</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
+        <Paper sx={{ p: 3, borderRadius: 3 }}>
+          <Typography variant="h4" mb={2} fontWeight="bold">
+            Admin Dashboard
+          </Typography>
 
           {loading ? (
-            <Box sx={{ textAlign: "center", my: 6 }}>
-              <CircularProgress />
-            </Box>
+            <CircularProgress />
           ) : (
             <>
-              <TableContainer
-                sx={{
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
+              <TableContainer>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: "action.hover" }}>
+                    <TableRow>
                       <TableCell>ประเภท</TableCell>
                       <TableCell>รายละเอียด</TableCell>
                       <TableCell>สถานที่</TableCell>
-                      <TableCell>ติดต่อ</TableCell>
                       <TableCell align="center">สถานะ</TableCell>
-                      <TableCell>เวลา</TableCell>
                       <TableCell align="center">จัดการ</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {paginated.map((row) => (
-                      <TableRow key={row.id} hover>
+                      <TableRow key={row.id}>
                         <TableCell>
                           {INCIDENT_TYPE_TH[row.type] ?? row.type}
                         </TableCell>
                         <TableCell>{row.description}</TableCell>
                         <TableCell>{row.location}</TableCell>
-                        <TableCell>{row.contact || "-"}</TableCell>
                         <TableCell align="center">
                           <Chip
-                            size="small"
                             label={row.status}
                             color={getStatusColor(row.status)}
+                            size="small"
                           />
                         </TableCell>
-                        <TableCell>
-                          {row.createdAt?.toDate
-                            ? row.createdAt
-                              .toDate()
-                              .toLocaleString("th-TH")
-                            : "-"}
-                        </TableCell>
                         <TableCell align="center">
-                          <Tooltip title="ทำเครื่องหมายว่าเสร็จสิ้น">
-                            <span>
-                              <IconButton
-                                color="success"
-                                disabled={row.status === "เสร็จสิ้น"}
-                                onClick={() => handleMarkDone(row.id)}
-                              >
-                                <CheckCircleIcon />
-                              </IconButton>
-                            </span>
+                          <Tooltip title="ดูรายละเอียด">
+                            <IconButton
+                              color="primary"
+                              onClick={() => handleViewDetail(row)}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
                           </Tooltip>
 
-                          <Tooltip title="ลบเหตุการณ์">
+                          <Tooltip title="เสร็จสิ้น">
+                            <IconButton
+                              color="success"
+                              disabled={row.status === "เสร็จสิ้น"}
+                              onClick={() => handleMarkDone(row.id)}
+                            >
+                              <CheckCircleIcon />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title="ลบ">
                             <IconButton
                               color="error"
                               onClick={() => handleDelete(row.id)}
@@ -379,18 +263,13 @@ export default function AdminDashboard({
         </Paper>
       </Container>
 
-      <Dialog
-        open={openDetail}
-        onClose={() => setOpenDetail(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ sx: { bgcolor: "background.paper" } }}
-      >
+      {/* Dialog แสดงรายละเอียด + แผนที่ */}
+      <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="md" fullWidth>
         <DialogTitle>รายละเอียดเหตุการณ์</DialogTitle>
         <DialogContent dividers>
           {detailIncident && (
             <>
-              <Typography fontWeight="bold">
+              <Typography fontWeight="bold" mb={1}>
                 {INCIDENT_TYPE_TH[detailIncident.type] ?? detailIncident.type}
               </Typography>
               <Typography>{detailIncident.description}</Typography>
@@ -423,17 +302,9 @@ export default function AdminDashboard({
           <Button onClick={() => setOpenDetail(false)}>ปิด</Button>
         </DialogActions>
       </Dialog>
-      <Snackbar
-        open={snackOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackOpen(false)}
-      >
-        <Alert
-          severity={snackSeverity}
-          onClose={() => setSnackOpen(false)}
-        >
-          {snackMsg}
-        </Alert>
+
+      <Snackbar open={snackOpen} autoHideDuration={3000} onClose={() => setSnackOpen(false)}>
+        <Alert severity="success">{snackMsg}</Alert>
       </Snackbar>
     </Box>
   );

@@ -108,11 +108,7 @@ export default function AdminDashboard({
   const [snackSeverity, setSnackSeverity] =
     useState<"success" | "error">("success");
 
-<<<<<<< HEAD
-  // Auth guard
-=======
   /* ===================== AUTH GUARD ===================== */
->>>>>>> upstream/develop
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
       if (!user) navigate("/admin/login");

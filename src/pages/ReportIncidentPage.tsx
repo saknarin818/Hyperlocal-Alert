@@ -7,7 +7,9 @@ import {
   Box,
   Paper,
   MenuItem,
+  Stack,
 } from "@mui/material";
+import PhotoCameraRoundedIcon from "@mui/icons-material/PhotoCameraRounded";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import { db, storage } from "../firebase";
@@ -16,7 +18,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Navbar from "../components/Navbar";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, alpha } from "@mui/material/styles";
 
 /* ================== TYPES ================== */
 type PageProps = {
@@ -35,9 +37,12 @@ const incidentTypes = [
 /* ================== LEAFLET ICON FIX ================== */
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
-  iconUrl: require("leaflet/dist/images/marker-icon.png"),
-  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-shadow.png",
 });
 
 /* ================== LOCATION PICKER ================== */
@@ -55,7 +60,10 @@ function LocationPicker({
 }
 
 /* ================== MAIN PAGE ================== */
-export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
+export default function ReportIncidentPage({
+  mode,
+  toggleTheme,
+}: PageProps) {
   const theme = useTheme();
 
   const [form, setForm] = useState({
@@ -70,7 +78,7 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  /* ========== Reverse Geocoding ========== */
+  /* ================= Reverse Geocoding ================= */
   useEffect(() => {
     if (!position) return;
 
@@ -84,14 +92,14 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
           setForm((prev) => ({ ...prev, location: data.display_name }));
         }
       } catch (err) {
-        console.error("Reverse geocode error:", err);
+        console.error(err);
       }
     };
 
     fetchAddress();
   }, [position]);
 
-  /* ========== Handlers ========== */
+  /* ================= Handlers ================= */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -99,13 +107,8 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.type || !form.description || !form.location) {
+    if (!form.type || !form.description || !form.location || !position) {
       alert("กรุณากรอกข้อมูลให้ครบ");
-      return;
-    }
-
-    if (!position) {
-      alert("กรุณาเลือกตำแหน่งบนแผนที่");
       return;
     }
 
@@ -119,7 +122,6 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
     try {
       let imageUrl = "";
 
-      /* Upload Image */
       if (imageFile) {
         const imageRef = ref(
           storage,
@@ -129,7 +131,6 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
         imageUrl = await getDownloadURL(imageRef);
       }
 
-      /* Save Firestore */
       await addDoc(collection(db, "incidents"), {
         ...form,
         imageUrl,
@@ -147,138 +148,170 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
       setPosition(null);
       setImageFile(null);
       setPreview(null);
-    } catch (error) {
-      console.error("Submit error:", error);
+    } catch (err) {
+      console.error(err);
       alert("เกิดข้อผิดพลาด");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================== UI ================== */
+  /* ================= UI ================= */
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <Box minHeight="100vh">
       <Navbar mode={mode} toggleTheme={toggleTheme} />
 
-      <Box sx={{ flex: 1, bgcolor: "background.default" }}>
-        <Container maxWidth="sm" sx={{ py: 6 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Paper sx={{ p: 4, borderRadius: 3 }}>
-              <Typography variant="h5" fontWeight="bold" mb={2}>
-                แจ้งเหตุการณ์
+      <Container maxWidth="sm" sx={{ py: 6 }}>
+        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}>
+          <Paper sx={{ p: 4, borderRadius: 4 }}>
+            <Typography variant="h5" fontWeight={800} mb={2}>
+              แจ้งเหตุการณ์
+            </Typography>
+
+            <Box component="form" onSubmit={handleSubmit}>
+              <TextField
+                select
+                label="ประเภทเหตุการณ์"
+                name="type"
+                value={form.type}
+                onChange={handleChange}
+                fullWidth
+                required
+                margin="normal"
+              >
+                {incidentTypes.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                label="รายละเอียด"
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                fullWidth
+                required
+                multiline
+                rows={3}
+                margin="normal"
+              />
+
+              <TextField
+                label="ข้อมูลติดต่อ ( ไม่บังคับ )"
+                name="contact"
+                value={form.contact}
+                onChange={handleChange}
+                fullWidth
+                margin="normal"
+              />
+
+              <TextField
+                label="สถานที่"
+                name="location"
+                value={form.location}
+                onChange={handleChange}
+                fullWidth
+                required
+                margin="normal"
+              />
+
+              <Typography variant="body2" color="text.secondary" mt={2}>
+                คลิกบนแผนที่เพื่อเลือกตำแหน่ง
               </Typography>
 
-              <Box component="form" onSubmit={handleSubmit}>
-                <TextField
-                  select
-                  label="ประเภทเหตุการณ์"
-                  name="type"
-                  value={form.type}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  margin="normal"
+              <Box sx={{ height: 280, mt: 1 }}>
+                <MapContainer
+                  center={[18.8976, 99.0157]}
+                  zoom={15}
+                  style={{ height: "100%" }}
                 >
-                  {incidentTypes.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <LocationPicker setPosition={setPosition} />
+                  {position && <Marker position={position} />}
+                </MapContainer>
+              </Box>
 
-                <TextField
-                  label="รายละเอียด"
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  multiline
-                  rows={3}
-                  margin="normal"
-                />
-
-                <TextField
-                  label="สถานที่"
-                  name="location"
-                  value={form.location}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  margin="normal"
-                />
-
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 2 }}
-                >
-                  คลิกบนแผนที่เพื่อเลือกตำแหน่ง
+              {/* ===== MODERN IMAGE UPLOAD ===== */}
+              <Box mt={3}>
+                <Typography fontWeight={600} mb={1}>
+                  รูปภาพเหตุการณ์
                 </Typography>
 
-                <Box sx={{ height: 300, mt: 1 }}>
-                  <MapContainer
-                    center={[18.8976, 99.0157]}
-                    zoom={15}
-                    style={{ height: "100%" }}
-                  >
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <LocationPicker setPosition={setPosition} />
-                    {position && <Marker position={position} />}
-                  </MapContainer>
-                </Box>
-
-                <TextField
-                  label="ข้อมูลติดต่อ"
-                  name="contact"
-                  value={form.contact}
-                  onChange={handleChange}
-                  fullWidth
-                  margin="normal"
-                />
-
-                <TextField
+                <input
                   type="file"
-                  inputProps={{ accept: "image/*" }}
-                  fullWidth
-                  margin="normal"
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const files = e.target.files;
-                    if (files && files[0]) {
-                      const file = files[0];
+                  accept="image/*"
+                  hidden
+                  id="image-upload"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
                       setImageFile(file);
                       setPreview(URL.createObjectURL(file));
                     }
                   }}
                 />
 
-                {preview && (
-                  <Box sx={{ mt: 2, textAlign: "center" }}>
-                    <img
-                      src={preview}
-                      alt="preview"
-                      style={{ maxWidth: "100%", borderRadius: 8 }}
-                    />
-                  </Box>
-                )}
-
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  sx={{ mt: 3 }}
-                  disabled={loading}
+                <motion.label
+                  htmlFor="image-upload"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{ cursor: "pointer" }}
                 >
-                  {loading ? "กำลังส่ง..." : "ส่งข้อมูล"}
-                </Button>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                      borderStyle: "dashed",
+                      textAlign: "center",
+                      bgcolor: preview
+                        ? "transparent"
+                        : alpha(theme.palette.primary.main, 0.05),
+                    }}
+                  >
+                    {preview ? (
+                      <Box
+                        component="img"
+                        src={preview}
+                        sx={{
+                          width: "100%",
+                          maxHeight: 240,
+                          objectFit: "cover",
+                          borderRadius: 2,
+                        }}
+                      />
+                    ) : (
+                      <Stack alignItems="center" spacing={1.5}>
+                        <PhotoCameraRoundedIcon
+                          sx={{ fontSize: 40, color: "text.secondary" }}
+                        />
+                        <Typography color="text.secondary">
+                          คลิกเพื่ออัปโหลดรูปภาพ
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          รองรับ JPG, PNG (ไม่เกิน 5MB)
+                        </Typography>
+                      </Stack>
+                    )}
+                  </Paper>
+                </motion.label>
               </Box>
-            </Paper>
-          </motion.div>
-        </Container>
-      </Box>
+
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                sx={{ mt: 4, py: 1.4, borderRadius: 999 }}
+                disabled={loading}
+              >
+                {loading ? "กำลังส่ง..." : "ส่งข้อมูล"}
+              </Button>
+            </Box>
+          </Paper>
+        </motion.div>
+      </Container>
     </Box>
   );
 }

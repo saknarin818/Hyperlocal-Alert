@@ -4,7 +4,6 @@ import {
   Container,
   Typography,
   Paper,
-  Divider,
   CircularProgress,
   Stack,
   useTheme,
@@ -12,18 +11,33 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  TextField,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+
+// Icons
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
-import { motion } from "framer-motion";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import CloseIcon from "@mui/icons-material/Close";
+
+// Firebase
 import { db } from "../firebase";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import Navbar from "../components/Navbar";
-import { alpha } from "@mui/material/styles";
 
-// 🗺️ Leaflet
+// Components
+import Navbar from "../components/Navbar";
+
+// Leaflet
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -34,6 +48,7 @@ type Incident = {
   description: string;
   location?: string;
   contact?: string;
+  imageUrl?: string; // ✅ รูปภาพ
   createdAt?: any;
   coordinates?: {
     lat: number;
@@ -66,9 +81,18 @@ type EventPageProps = {
 
 export default function EventPage({ mode, toggleTheme }: EventPageProps) {
   const theme = useTheme();
+  const navigate = useNavigate();
+
   const [events, setEvents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState("all");
+  const [searchText, setSearchText] = useState("");
+
+  // Map dialog
+  const [openMap, setOpenMap] = useState(false);
+  const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(
+    null
+  );
 
   /* -------------------- FETCH -------------------- */
   useEffect(() => {
@@ -78,24 +102,23 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: Incident[] = snapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as Omit<Incident, "id">),
-        }))
-        // 🔽 เรียงตรงนี้แทน orderBy
-        .sort((a, b) => {
+      const data: Incident[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Incident, "id">),
+      }));
+
+      setEvents(
+        data.sort((a, b) => {
           const ta =
             a.createdAt?.toMillis?.() ??
             (a.createdAt?.seconds ?? 0) * 1000;
-
           const tb =
             b.createdAt?.toMillis?.() ??
             (b.createdAt?.seconds ?? 0) * 1000;
-
           return tb - ta;
-        });
-      setEvents(data);
+        })
+      );
+
       setLoading(false);
     });
 
@@ -103,14 +126,21 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
   }, []);
 
   /* -------------------- FILTER -------------------- */
-  const categories = Array.from(
-    new Set(events.map((ev) => ev.type))
-  );
+  const categories = Array.from(new Set(events.map((ev) => ev.type)));
 
-  const filteredEvents =
-    selectedType === "all"
-      ? events
-      : events.filter((ev) => ev.type === selectedType);
+  const filteredEvents = events.filter((ev) => {
+    const matchType =
+      selectedType === "all" || ev.type === selectedType;
+
+    const keyword = searchText.toLowerCase();
+
+    const matchSearch =
+      getTypeLabel(ev.type).toLowerCase().includes(keyword) ||
+      ev.description.toLowerCase().includes(keyword) ||
+      (ev.location ?? "").toLowerCase().includes(keyword);
+
+    return matchType && matchSearch;
+  });
 
   /* -------------------- LOADING -------------------- */
   if (loading) {
@@ -137,6 +167,20 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
 
       <Box py={10} bgcolor={alpha(theme.palette.background.default, 0.95)}>
         <Container maxWidth="md">
+          {/* Back Button */}
+          <Button
+            startIcon={<ArrowBackRoundedIcon />}
+            onClick={() => navigate("/")}
+            sx={{
+              mb: 3,
+              borderRadius: "999px",
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+          >
+            กลับไปหน้าหลัก
+          </Button>
+
           {/* Header */}
           <Stack spacing={1.5} alignItems="center" mb={5}>
             <ReportProblemRoundedIcon color="primary" sx={{ fontSize: 42 }} />
@@ -148,8 +192,21 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
             </Typography>
           </Stack>
 
-          {/* Filter */}
-          <Stack direction="row" justifyContent="flex-end" mb={4}>
+          {/* Search + Filter */}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            mb={4}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              label="ค้นหาเหตุการณ์"
+              placeholder="ประเภท / รายละเอียด / สถานที่"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+
             <FormControl size="small" sx={{ minWidth: 220 }}>
               <InputLabel>หมวดเหตุการณ์</InputLabel>
               <Select
@@ -183,58 +240,50 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
                   <Paper
                     sx={{
                       borderRadius: 4,
-                      overflow: "hidden",
                       border: "1px solid",
                       borderColor: "divider",
+                      overflow: "hidden",
                     }}
                   >
-                    {/* Header */}
                     <Box p={3}>
-                      <Typography
-                        variant="caption"
-                        color="primary"
-                        fontWeight={600}
-                      >
-                        เหตุการณ์
-                      </Typography>
-
                       <Typography variant="h6" fontWeight={800}>
                         {getTypeLabel(ev.type)}
                       </Typography>
 
-                      <Typography mt={1}>
+                      <Typography mt={1} mb={2}>
                         {ev.description}
                       </Typography>
-                    </Box>
 
-                    {/* Map */}
-                    {hasCoords && (
-                      <Box height={280}>
-                        <MapContainer
-                          center={[
-                            ev.coordinates!.lat,
-                            ev.coordinates!.lng,
-                          ]}
-                          zoom={16}
-                          style={{ height: "100%", width: "100%" }}
-                          scrollWheelZoom={false}
+                      {/* Image */}
+                      {ev.imageUrl && (
+                        <Box
+                          component="img"
+                          src={ev.imageUrl}
+                          alt="incident"
+                          sx={{
+                            width: "100%",
+                            maxHeight: 260,
+                            objectFit: "cover",
+                            borderRadius: 2,
+                            mb: 2,
+                          }}
+                        />
+                      )}
+
+                      {hasCoords && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          sx={{ mb: 2, borderRadius: "999px" }}
+                          onClick={() => {
+                            setMapCoords(ev.coordinates!);
+                            setOpenMap(true);
+                          }}
                         >
-                          <TileLayer
-                            attribution="&copy; OpenStreetMap"
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          />
-                          <Marker
-                            position={[
-                              ev.coordinates!.lat,
-                              ev.coordinates!.lng,
-                            ]}
-                          />
-                        </MapContainer>
-                      </Box>
-                    )}
+                          🗺️ ดูแผนที่
+                        </Button>
+                      )}
 
-                    {/* Footer */}
-                    <Box p={3}>
                       <Stack spacing={1}>
                         <Stack direction="row" spacing={1}>
                           <LocationOnRoundedIcon fontSize="small" />
@@ -255,8 +304,8 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
                           <Typography variant="caption">
                             {ev.createdAt?.toDate
                               ? ev.createdAt
-                                .toDate()
-                                .toLocaleString("th-TH")
+                                  .toDate()
+                                  .toLocaleString("th-TH")
                               : "-"}
                           </Typography>
                         </Stack>
@@ -269,6 +318,41 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
           </Stack>
         </Container>
       </Box>
+
+      {/* MAP DIALOG */}
+      <Dialog
+        open={openMap}
+        onClose={() => setOpenMap(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          ตำแหน่งเหตุการณ์
+          <IconButton
+            onClick={() => setOpenMap(false)}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent>
+          {mapCoords && (
+            <Box sx={{ height: 420, borderRadius: 2, overflow: "hidden" }}>
+              <MapContainer
+                center={[mapCoords.lat, mapCoords.lng]}
+                zoom={16}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <Marker
+                  position={[mapCoords.lat, mapCoords.lng]}
+                />
+              </MapContainer>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

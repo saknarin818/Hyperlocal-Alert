@@ -26,6 +26,7 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 
 import { auth, db } from "../../firebase";
@@ -38,6 +39,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  where,
   Timestamp,
 } from "firebase/firestore";
 
@@ -108,6 +110,9 @@ export default function AdminDashboard({
   const [snackSeverity, setSnackSeverity] =
     useState<"success" | "error">("success");
 
+  // State for new incident notification
+  const [notification, setNotification] = useState<string | null>(null);
+
   /* ===================== AUTH GUARD ===================== */
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
@@ -118,14 +123,45 @@ export default function AdminDashboard({
 
   /* ===================== FETCH DATA ===================== */
   useEffect(() => {
+    // Listener for ALL incidents to display in the table
     const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
+    const unsubscribeTable = onSnapshot(q, (snapshot) => {
       setIncidents(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() } as Incident))
+        snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Incident))
       );
       setLoading(false);
     });
-    return () => unsub();
+
+    // Listener specifically for NEW incidents to trigger notification
+    const qNew = query(
+      collection(db, "incidents"),
+      where("status", "==", "กำลังตรวจสอบ"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribeNotify = onSnapshot(qNew, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        // Only trigger on 'added' and if it's not the initial data load
+        if (change.type === "added") {
+          const newIncident = change.doc.data();
+          // To prevent notification on initial page load, we can check the timestamp
+          // This logic can be improved, but it's a simple way to start
+          const incidentTime = (newIncident.createdAt as Timestamp).toDate();
+          const now = new Date();
+          // If the incident was created in the last 15 seconds, show notification
+          if (now.getTime() - incidentTime.getTime() < 15000) {
+            setNotification(
+              `มีเหตุการณ์ใหม่: ${newIncident.type} ที่ ${newIncident.location}`
+            );
+          }
+        }
+      });
+    });
+
+    return () => {
+      unsubscribeTable();
+      unsubscribeNotify();
+    };
   }, []);
 
   /* ===================== ACTION ===================== */
@@ -136,18 +172,13 @@ export default function AdminDashboard({
   };
 
   const handleMarkDone = async (id: string) => {
-    await updateDoc(doc(db, "incidents", id), { status: "เสร็จสิ้น" });
-    setSnackMsg("อัปเดตสถานะเรียบร้อย");
-    setSnackSeverity("success");
-    setSnackOpen(true);
+    const newStatus = "เสร็จสิ้น";
+    await updateDoc(doc(db, "incidents", id), { status: newStatus });
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("ต้องการลบเหตุการณ์นี้หรือไม่?")) return;
     await deleteDoc(doc(db, "incidents", id));
-    setSnackMsg("ลบเหตุการณ์แล้ว");
-    setSnackSeverity("success");
-    setSnackOpen(true);
   };
 
   const handleViewDetail = (incident: Incident) => {
@@ -322,12 +353,20 @@ export default function AdminDashboard({
         </DialogActions>
       </Dialog>
 
+      {/* ===================== NEW INCIDENT NOTIFICATION ===================== */}
       <Snackbar
-        open={snackOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackOpen(false)}
+        open={!!notification}
+        autoHideDuration={6000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert severity={snackSeverity}>{snackMsg}</Alert>
+        <Alert
+          onClose={() => setNotification(null)}
+          severity="info"
+          sx={{ width: "100%" }}
+        >
+          {notification}
+        </Alert>
       </Snackbar>
     </Box>
   );

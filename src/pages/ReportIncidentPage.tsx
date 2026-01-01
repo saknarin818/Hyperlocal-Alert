@@ -7,17 +7,26 @@ import {
   Box,
   Paper,
   MenuItem,
+  Stack,
 } from "@mui/material";
+import PhotoCameraRoundedIcon from "@mui/icons-material/PhotoCameraRounded";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-// นำเข้าเฉพาะ db ไม่ต้องใช้ storage
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Navbar from "../components/Navbar";
+import { useTheme, alpha } from "@mui/material/styles";
 
-// ประเภทเหตุการณ์
+/* ================== TYPES ================== */
+type PageProps = {
+  mode: "light" | "dark";
+  toggleTheme: () => void;
+};
+
+/* ================== CONSTANTS ================== */
 const incidentTypes = [
   { value: "fire", label: "ไฟไหม้" },
   { value: "accident", label: "อุบัติเหตุ" },
@@ -25,16 +34,23 @@ const incidentTypes = [
   { value: "other", label: "อื่น ๆ" },
 ];
 
-// ตั้งค่า Marker icon
+/* ================== LEAFLET ICON FIX ================== */
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
-  iconUrl: require("leaflet/dist/images/marker-icon.png"),
-  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-shadow.png",
 });
 
-// Component สำหรับเลือกพิกัด
-function LocationPicker({ setPosition }: { setPosition: (pos: [number, number]) => void }) {
+/* ================== LOCATION PICKER ================== */
+function LocationPicker({
+  setPosition,
+}: {
+  setPosition: (pos: [number, number]) => void;
+}) {
   useMapEvents({
     click(e) {
       setPosition([e.latlng.lat, e.latlng.lng]);
@@ -43,7 +59,13 @@ function LocationPicker({ setPosition }: { setPosition: (pos: [number, number]) 
   return null;
 }
 
-export default function ReportIncidentPage() {
+/* ================== MAIN PAGE ================== */
+export default function ReportIncidentPage({
+  mode,
+  toggleTheme,
+}: PageProps) {
+  const theme = useTheme();
+
   const [form, setForm] = useState({
     type: "",
     description: "",
@@ -52,12 +74,15 @@ export default function ReportIncidentPage() {
   });
 
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Reverse geocoding
+  /* ================= Reverse Geocoding ================= */
   useEffect(() => {
+    if (!position) return;
+
     const fetchAddress = async () => {
-      if (!position) return;
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${position[0]}&lon=${position[1]}&format=json&accept-language=th`
@@ -66,200 +91,227 @@ export default function ReportIncidentPage() {
         if (data?.display_name) {
           setForm((prev) => ({ ...prev, location: data.display_name }));
         }
-      } catch (error) {
-        console.error("Error fetching address:", error);
+      } catch (err) {
+        console.error(err);
       }
     };
+
     fetchAddress();
   }, [position]);
 
-  // handle form change
+  /* ================= Handlers ================= */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // handle submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.type || !form.description || !form.location) {
-      alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (ประเภท, รายละเอียด, สถานที่)");
+
+    if (!form.type || !form.description || !form.location || !position) {
+      alert("กรุณากรอกข้อมูลให้ครบ");
       return;
     }
+
+    if (imageFile && imageFile.size > 5 * 1024 * 1024) {
+      alert("ขนาดรูปต้องไม่เกิน 5MB");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // บันทึกข้อมูลทั้งหมดลง Firestore (ไม่มีส่วนของรูปภาพ)
+      let imageUrl = "";
+
+      if (imageFile) {
+        const imageRef = ref(
+          storage,
+          `incidents/${Date.now()}-${crypto.randomUUID()}`
+        );
+        await uploadBytes(imageRef, imageFile);
+        imageUrl = await getDownloadURL(imageRef);
+      }
+
       await addDoc(collection(db, "incidents"), {
-        type: form.type,
-        description: form.description,
-        location: form.location,
-        contact: form.contact,
-        coordinates: position,
-        createdAt: Timestamp.now(),
+        ...form,
+        imageUrl,
+        coordinates: {
+          lat: position[0],
+          lng: position[1],
+        },
         status: "กำลังตรวจสอบ",
+        createdAt: Timestamp.now(),
       });
 
-      alert("ส่งข้อมูลเรียบร้อยแล้ว!");
-      // ล้างฟอร์ม
+      alert("ส่งข้อมูลเรียบร้อยแล้ว");
+
       setForm({ type: "", description: "", location: "", contact: "" });
       setPosition(null);
-    } catch (error) {
-      console.error("Error adding document: ", error);
-      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
+      setImageFile(null);
+      setPreview(null);
+    } catch (err) {
+      console.error(err);
+      alert("เกิดข้อผิดพลาด");
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= UI ================= */
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Navbar />
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          backgroundImage: `url("/images/bgreport.jpg")`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          position: "relative",
-        }}
-      >
-        {/* Overlay */}
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            backgroundColor: "rgba(255,255,255,0.2)",
-            zIndex: 0,
-          }}
-        />
+    <Box minHeight="100vh">
+      <Navbar mode={mode} toggleTheme={toggleTheme} />
 
-        <Container maxWidth="sm" sx={{ py: 6, position: "relative", zIndex: 1 }}>
-          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-            <Paper
-              elevation={5}
-              sx={{
-                p: 4,
-                borderRadius: 3,
-                backgroundColor: "rgba(255, 255, 255, 0.8)",
-                backdropFilter: "blur(6px)",
-              }}
-            >
-              <Box component="form" onSubmit={handleSubmit} noValidate>
-                <TextField
-                  select
-                  label="ประเภทเหตุการณ์"
-                  name="type"
-                  value={form.type}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  margin="normal"
+      <Container maxWidth="sm" sx={{ py: 6 }}>
+        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}>
+          <Paper sx={{ p: 4, borderRadius: 4 }}>
+            <Typography variant="h5" fontWeight={800} mb={2}>
+              แจ้งเหตุการณ์
+            </Typography>
+
+            <Box component="form" onSubmit={handleSubmit}>
+              <TextField
+                select
+                label="ประเภทเหตุการณ์"
+                name="type"
+                value={form.type}
+                onChange={handleChange}
+                fullWidth
+                required
+                margin="normal"
+              >
+                {incidentTypes.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                label="รายละเอียด"
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                fullWidth
+                required
+                multiline
+                rows={3}
+                margin="normal"
+              />
+
+              <TextField
+                label="ข้อมูลติดต่อ ( ไม่บังคับ )"
+                name="contact"
+                value={form.contact}
+                onChange={handleChange}
+                fullWidth
+                margin="normal"
+              />
+
+              <TextField
+                label="สถานที่"
+                name="location"
+                value={form.location}
+                onChange={handleChange}
+                fullWidth
+                required
+                margin="normal"
+              />
+
+              <Typography variant="body2" color="text.secondary" mt={2}>
+                คลิกบนแผนที่เพื่อเลือกตำแหน่ง
+              </Typography>
+
+              <Box sx={{ height: 280, mt: 1 }}>
+                <MapContainer
+                  center={[18.8976, 99.0157]}
+                  zoom={15}
+                  style={{ height: "100%" }}
                 >
-                  {incidentTypes.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
-                <TextField
-                  label="รายละเอียดเหตุการณ์"
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  multiline
-                  rows={3}
-                  margin="normal"
-                />
-
-                <TextField
-                  label="สถานที่เกิดเหตุ (คำอธิบาย)"
-                  name="location"
-                  value={form.location}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  margin="normal"
-                />
-
-                {/* แผนที่ */}
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: { xs: 250, sm: 300 },
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    mt: 2,
-                  }}
-                >
-                  <MapContainer
-                    center={[18.8976, 99.0157]}
-                    zoom={15}
-                    style={{ height: "300px", borderRadius: "12px" }}
-                  >
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
-                    />
-                    <LocationPicker setPosition={setPosition} />
-                    {position && <Marker position={position}></Marker>}
-                  </MapContainer>
-                </Box>
-
-                <TextField
-                  label="ข้อมูลติดต่อ (ถ้ามี)"
-                  name="contact"
-                  value={form.contact}
-                  onChange={handleChange}
-                  fullWidth
-                  margin="normal"
-                />
-
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                  sx={{ mt: 3, borderRadius: "2rem" }}
-                  disabled={loading}
-                >
-                  {loading ? "กำลังส่ง..." : "ส่งข้อมูล"}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outlined"
-                  color="warning"
-                  fullWidth
-                  sx={{ mt: 2, borderRadius: "2rem" }}
-                  onClick={() => {
-                    setForm({ type: "", description: "", location: "", contact: "" });
-                    setPosition(null);
-                  }}
-                >
-                  ล้างข้อมูล
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="text"
-                  color="primary"
-                  fullWidth
-                  sx={{ mt: 3, borderRadius: "2rem" }}
-                  onClick={() => (window.location.href = "/")}
-                >
-                  กลับหน้าหลัก
-                </Button>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <LocationPicker setPosition={setPosition} />
+                  {position && <Marker position={position} />}
+                </MapContainer>
               </Box>
-            </Paper>
-          </motion.div>
-        </Container>
-      </Box>
+
+              {/* ===== MODERN IMAGE UPLOAD ===== */}
+              <Box mt={3}>
+                <Typography fontWeight={600} mb={1}>
+                  รูปภาพเหตุการณ์
+                </Typography>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  id="image-upload"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFile(file);
+                      setPreview(URL.createObjectURL(file));
+                    }
+                  }}
+                />
+
+                <motion.label
+                  htmlFor="image-upload"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                      borderStyle: "dashed",
+                      textAlign: "center",
+                      bgcolor: preview
+                        ? "transparent"
+                        : alpha(theme.palette.primary.main, 0.05),
+                    }}
+                  >
+                    {preview ? (
+                      <Box
+                        component="img"
+                        src={preview}
+                        sx={{
+                          width: "100%",
+                          maxHeight: 240,
+                          objectFit: "cover",
+                          borderRadius: 2,
+                        }}
+                      />
+                    ) : (
+                      <Stack alignItems="center" spacing={1.5}>
+                        <PhotoCameraRoundedIcon
+                          sx={{ fontSize: 40, color: "text.secondary" }}
+                        />
+                        <Typography color="text.secondary">
+                          คลิกเพื่ออัปโหลดรูปภาพ
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          รองรับ JPG, PNG (ไม่เกิน 5MB)
+                        </Typography>
+                      </Stack>
+                    )}
+                  </Paper>
+                </motion.label>
+              </Box>
+
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                sx={{ mt: 4, py: 1.4, borderRadius: 999 }}
+                disabled={loading}
+              >
+                {loading ? "กำลังส่ง..." : "ส่งข้อมูล"}
+              </Button>
+            </Box>
+          </Paper>
+        </motion.div>
+      </Container>
     </Box>
   );
 }

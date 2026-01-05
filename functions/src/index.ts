@@ -12,6 +12,8 @@ import {onRequest} from "firebase-functions/https";
 import * as logger from "firebase-functions/logger";
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import {Change, EventContext} from "firebase-functions";
+import {DocumentSnapshot} from "firebase-admin/firestore";
 
 // Initialize the Firebase Admin SDK
 admin.initializeApp();
@@ -29,7 +31,7 @@ admin.initializeApp();
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+setGlobalOptions({maxInstances: 10});
 
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
@@ -41,64 +43,147 @@ setGlobalOptions({ maxInstances: 10 });
  * If the new status is "เสร็จสิ้น", it sends a push notification to all subscribed users.
  */
 export const notifyOnIncidentApproval = functions.firestore
-  .document("incidents/{incidentId}")
-  .onUpdate(async (change, context) => {
-    const newData = change.after.data();
-    const oldData = change.before.data();
+    .document("incidents/{incidentId}")
+    .onUpdate(async (change: Change<DocumentSnapshot>, context: EventContext) => {
+      const newData = change.after.data();
+      const oldData = change.before.data();
 
-    // Check if the status was changed to "เสร็จสิ้น"
-    if (newData.status !== "เสร็จสิ้น" || oldData.status === "เสร็จสิ้น") {
-      functions.logger.log("Status not changed to 'เสร็จสิ้น' or already was. No notification sent.");
-      return null;
-    }
+      // Check if the status was changed to "เสร็จสิ้น"
+      // and wasn't already "เสร็จสิ้น"
+      if (!newData || !oldData ||
+        newData.status !== "เสร็จสิ้น" || oldData.status === "เสร็จสิ้น") {
+        functions.logger.log(
+            "Condition not met. No notification sent.",
+        );
+        return null;
+      }
 
-    functions.logger.log(`Incident ${context.params.incidentId} approved. Preparing notification.`);
+      functions.logger.log(
+          `Incident ${context.params.incidentId} approved. ` +
+        "Preparing notification.",
+      );
 
+      // 1. Prepare the notification payload
+      const payload: admin.messaging.MessagingPayload = {
+        notification: {
+          title: "เหตุการณ์ได้รับการอนุมัติแล้ว!",
+          body: `ประเภท: ${newData.type || "ไม่ระบุ"} - ${
+            String(newData.description || "").slice(0, 100)
+          }...`,
+          icon: "https://hyperlocal-alert.web.app/logo192.png",
+          click_action: "https://hyperlocal-alert.web.app/event",
+        },
+      };
+
+      // 2. Get all FCM tokens from the 'fcmTokens' collection
+      const tokensSnapshot =
+      await admin.firestore().collection("fcmTokens").get();
+
+      if (tokensSnapshot.empty) {
+        functions.logger.log("No FCM tokens found. Cannot send notifications.");
+        return null;
+      }
+
+      const tokens = tokensSnapshot.docs.map((doc) => doc.id);
+
+      functions.logger.log(`Sending notification to ${tokens.length} tokens.`);
+
+      // 3. Send notifications to all tokens using the new sendMulticast method
+      const response = await admin.messaging().sendMulticast({
+        tokens,
+        notification: payload.notification,
+      });
+
+      // 4. Clean up invalid or expired tokens from Firestore
+      const tokensToRemove: Promise<any>[] = [];
+      // The response object now uses 'responses' instead of 'results'
+      response.responses.forEach((result, index) => {
+        const error = result.error;
+        if (error) {
+          functions.logger.error(
+              "Failure sending notification to",
+              tokens[index],
+              error,
+          );
+          // If the token is invalid, schedule it for deletion
+          if (
+            error.code === "messaging/invalid-registration-token" ||
+          error.code === "messaging/registration-token-not-registered"
+          ) {
+            tokensToRemove.push(
+                admin.firestore()
+                    .collection("fcmTokens").doc(tokens[index]).delete(),
+            );
+          }
+        }
+      });
+
+      // Wait for all invalid tokens to be deleted
+      return Promise.all(tokensToRemove);
+    });
+
+/**
+ * Sends a test push notification to all subscribed users.
+ * This is an HTTP-triggered function.
+ */
+export const sendTestNotification = onRequest(async (request, response) => {
+  try {
     // 1. Prepare the notification payload
     const payload: admin.messaging.MessagingPayload = {
       notification: {
-        title: "เหตุการณ์ได้รับการอนุมัติแล้ว!",
-        body: `ประเภท: ${newData.type || "ไม่ระบุ"} - ${String(newData.description || "").slice(0, 100)}...`,
-        icon: "https://hyperlocal-alert.web.app/logo192.png", // URL เต็มของไอคอน
-        click_action: "https://hyperlocal-alert.web.app/event" // URL ที่จะเปิดเมื่อคลิก
+        title: "Test Notification!",
+        body: "This is a test notification from the server.",
+        icon: "https://hyperlocal-alert.web.app/logo192.png",
+        click_action: "https://hyperlocal-alert.web.app/",
       },
     };
 
     // 2. Get all FCM tokens from the 'fcmTokens' collection
     const tokensSnapshot = await admin.firestore().collection("fcmTokens").get();
-    
+
     if (tokensSnapshot.empty) {
-      functions.logger.log("No FCM tokens found. Cannot send notifications.");
-      return null;
+      logger.log("No FCM tokens found. Cannot send notifications.");
+      response.status(404).send("No FCM tokens found.");
+      return;
     }
 
-    const tokens = tokensSnapshot.docs.map((doc) => doc.id); // Assuming token is the document ID
+    const tokens = tokensSnapshot.docs.map((doc) => doc.id);
 
-    functions.logger.log(`Sending notification to ${tokens.length} tokens.`);
+    logger.log(`Sending notification to ${tokens.length} tokens.`);
 
     // 3. Send notifications to all tokens
-    const response = await admin.messaging().sendToDevice(tokens, payload);
+    const messagingResponse =
+      await admin.messaging().sendMulticast({
+        tokens,
+        notification: payload.notification,
+      });
 
     // 4. Clean up invalid or expired tokens from Firestore
     const tokensToRemove: Promise<any>[] = [];
-    response.results.forEach((result, index) => {
+    messagingResponse.responses.forEach((result, index) => {
       const error = result.error;
       if (error) {
-        functions.logger.error("Failure sending notification to", tokens[index], error);
+        logger.error("Failure sending notification to", tokens[index], error);
         // If the token is invalid, schedule it for deletion
         if (
           error.code === "messaging/invalid-registration-token" ||
           error.code === "messaging/registration-token-not-registered"
         ) {
           tokensToRemove.push(
-            admin.firestore().collection("fcmTokens").doc(tokens[index]).delete()
+              admin.firestore()
+                  .collection("fcmTokens").doc(tokens[index]).delete(),
           );
         }
       }
     });
 
-    // Wait for all invalid tokens to be deleted
     await Promise.all(tokensToRemove);
-    functions.logger.log("Finished sending notifications and cleaned up invalid tokens.");
-    return null;
-  });
+
+    response.send(
+        `Successfully sent message to ${messagingResponse.successCount} devices.`,
+    );
+  } catch (error) {
+    logger.error("Error sending notification:", error);
+    response.status(500).send("Error sending notification");
+  }
+});

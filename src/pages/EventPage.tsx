@@ -68,7 +68,7 @@ const EVENT_TYPE_TH: Record<string, string> = {
   electricity: "ไฟฟ้าขัดข้อง",
   water: "น้ำประปาขัดข้อง",
   general: "เหตุทั่วไป",
-  other: "อื่น ๆ",
+  other: "เหตุการณ์อื่น ๆ",
 };
 
 const getTypeLabel = (type: string) => EVENT_TYPE_TH[type] || type;
@@ -168,7 +168,7 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
       <Box py={10} bgcolor={alpha(theme.palette.background.default, 0.95)}>
         <Container maxWidth="md">
           {/* Back Button */}
-          <Button
+          {/* <Button
             startIcon={<ArrowBackRoundedIcon />}
             onClick={() => navigate("/")}
             sx={{
@@ -179,7 +179,7 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
             }}
           >
             กลับไปหน้าหลัก
-          </Button>
+          </Button> */}
 
           {/* Header */}
           <Stack spacing={1.5} alignItems="center" mb={5}>

@@ -58,14 +58,14 @@ export const notifyonincidentapproval = onDocumentUpdated("incidents/{incidentId
   const multicastMessage: admin.messaging.MulticastMessage = {
     tokens,
     notification: {
-      title: "เหตุการณ์ได้รับการอนุมัติแล้ว!",
+      title: " แจ้งเตือนเหตุการณ์ใหม่!",
       body: `ประเภท: ${newData.type || "ไม่ระบุ"} - ${
         String(newData.description || "").slice(0, 100)
       }...`,
     },
     webpush: {
       notification: {
-        icon: "https://hyperlocal-alert.web.app/logo192.png",
+        icon: "https://hyperlocal-alert.web.app/LOGO_CAS.png",
       },
       fcmOptions: {
         link: "https://hyperlocal-alert.web.app/event",
@@ -127,7 +127,7 @@ export const sendtestnotification = onRequest(async (request, response) => {
       },
       webpush: {
         notification: {
-          icon: "https://hyperlocal-alert.web.app/logo192.png",
+          icon: "https://hyperlocal-alert.web.app/LOGO_CAS.png",
         },
         fcmOptions: {
           link: "https://hyperlocal-alert.web.app/",

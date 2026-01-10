@@ -65,7 +65,7 @@ const typeLabelTH: Record<string, string> = {
   electricity: "ไฟฟ้าขัดข้อง",
   water: "น้ำประปาขัดข้อง",
   general: "เหตุทั่วไป",
-  other: "อื่น ๆ",
+  other: "เหตุการณ์อื่น ๆ",
 };
 
 /* ================= CHART DATA ================= */
@@ -230,12 +230,12 @@ export default function HistoryPage({ mode, toggleTheme }: HistoryPageProps) {
                           <strong>ข้อมูลติดต่อ:</strong> {incident.contact}
                         </Typography>
                       )}
-                      <Chip
+                      {/* <Chip
                         label={incident.status}
                         color={incident.status === "เสร็จสิ้น" ? "success" : "warning"}
                         size="small"
                         sx={{ mt: 1 }}
-                      />
+                      /> */}
                       <Divider sx={{ mt: 2 }} />
                     </Box>
                   ))}

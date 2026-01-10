@@ -27,7 +27,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
 
   const links = [
     { title: "ดูเหตุการณ์", href: "/event" },
-    { title: "เช็คประวัติเหตุการณ์", href: "/history" },
+    { title: "สถิติและประวัติเหตุการณ์", href: "/history" },
     { title: "สมัครรับแจ้งเตือน", href: "/subscribe" },
   ];
 
@@ -56,7 +56,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
             color: theme.palette.text.primary, // ✅ เปลี่ยนตาม theme
           }}
         >
-          Community Alert
+          Hyperlocal Community Alert
         </Typography>
 
         {/* Desktop Menu */}

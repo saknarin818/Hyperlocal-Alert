@@ -31,7 +31,7 @@ const incidentTypes = [
   { value: "fire", label: "ไฟไหม้" },
   { value: "accident", label: "อุบัติเหตุ" },
   { value: "crime", label: "อาชญากรรม" },
-  { value: "other", label: "อื่น ๆ" },
+  { value: "other", label: "เหตุการณ์อื่น ๆ" },
 ];
 
 /* ================== LEAFLET ICON FIX ================== */

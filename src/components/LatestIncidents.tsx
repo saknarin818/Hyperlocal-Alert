@@ -1,16 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
-  Typography,
+  Box,
   Button,
-  Container,
   Card,
   CardContent,
-  Box,
-  useTheme,
+  Container,
+  Typography,
   Dialog,
-  DialogContent,
   DialogTitle,
+  DialogContent,
   IconButton,
   CircularProgress,
 } from "@mui/material";
@@ -19,19 +18,20 @@ import { motion } from "framer-motion";
 import {
   collection,
   onSnapshot,
-  orderBy,
   query,
+  orderBy,
   limit,
   where,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { alpha } from "@mui/material/styles";
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import { alpha, useTheme } from "@mui/material/styles";
+
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-/* FIX leaflet icon */
+/* ================= FIX LEAFLET ICON ================= */
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -41,6 +41,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-shadow.png",
 });
+
+/* ================= TYPES ================= */
 
 interface Incident {
   id: string;
@@ -62,35 +64,49 @@ const INCIDENT_TYPE_TH: Record<string, string> = {
   other: "เหตุการณ์อื่น ๆ",
 };
 
+/* ================= ล่าสุดภายใน 24 ชม. ================= */
+const isNewIncident = (createdAt?: Timestamp) => {
+  if (!createdAt) return false;
+  const now = new Date();
+  const created = createdAt.toDate();
+  return (now.getTime() - created.getTime()) / (1000 * 60 * 60) <= 24;
+};
+
+/* ================= COMPONENT ================= */
+
 export default function LatestIncidents() {
   const theme = useTheme();
-  const [latestEvents, setLatestEvents] = useState<Incident[]>([]);
+  const markerRef = useRef<L.Marker | null>(null);
+
+  const [events, setEvents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // popup states
+  const [openDetail, setOpenDetail] = useState(false);
+  const [openImage, setOpenImage] = useState(false);
   const [openMap, setOpenMap] = useState(false);
-  const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(
-    null
-  );
+
+  const [selectedEvent, setSelectedEvent] = useState<Incident | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [mapCoords, setMapCoords] =
+    useState<{ lat: number; lng: number } | null>(null);
+
+  /* ================= FIRESTORE ================= */
 
   useEffect(() => {
-    // Optimized query: filter, order, and limit directly in Firestore
     const q = query(
       collection(db, "incidents"),
-      where("status", "==", "เสร็จสิ้น"), // <-- กรองเอาเฉพาะ status "เสร็จสิ้น"
-      orderBy("createdAt", "desc"),      // เรียงจากใหม่ไปเก่า
-      limit(3)                           // เอาแค่ 3 รายการ
+      where("status", "==", "เสร็จสิ้น"),
+      orderBy("createdAt", "desc"),
+      limit(3)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: Incident[] = snapshot.docs.map((doc) => {
+    const unsub = onSnapshot(q, (snap) => {
+      const data = snap.docs.map((doc) => {
         const d = doc.data();
         return {
           id: doc.id,
-          type: d.type,
-          description: d.description,
-          location: d.location,
-          status: d.status,
-          createdAt: d.createdAt,
-          imageUrl: d.imageUrl ?? null,
+          ...d,
           coordinates:
             d.coordinates &&
             typeof d.coordinates.lat === "number" &&
@@ -98,13 +114,21 @@ export default function LatestIncidents() {
               ? { lat: d.coordinates.lat, lng: d.coordinates.lng }
               : null,
         };
-      });
-      setLatestEvents(data);
+      }) as Incident[];
+
+      setEvents(data);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
+
+  /* ================= AUTO OPEN MAP POPUP ================= */
+  useEffect(() => {
+    if (openMap && markerRef.current) {
+      markerRef.current.openPopup();
+    }
+  }, [openMap]);
 
   if (loading) {
     return (
@@ -114,116 +138,128 @@ export default function LatestIncidents() {
     );
   }
 
+  /* ================= UI ================= */
+
   return (
     <>
-      <Container sx={{ py: { xs: 6, md: 7 } }}>
-        <Typography
-          variant="h4"
-          fontWeight={700}
-          textAlign="center"
-          gutterBottom
-        >
+      <Container sx={{ py: 6 }}>
+        <Typography variant="h4" fontWeight={700} textAlign="center" mb={4}>
           เหตุการณ์ล่าสุดในพื้นที่
         </Typography>
 
-        <Box sx={{ mt: 4, display: "flex", flexDirection: "column", gap: 3 }}>
-          {latestEvents.length === 0 ? (
-            <Typography textAlign="center" color="text.secondary">
-              ยังไม่มีเหตุการณ์ล่าสุด
-            </Typography>
-          ) : (
-            latestEvents.map((ev, index) => (
-              <motion.div
-                key={ev.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+        {/* ===== LIST ===== */}
+        <Box display="flex" flexDirection="column" gap={3}>
+          {events.map((item, index) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card
+                sx={{
+                  position: "relative",
+                  borderRadius: 3,
+                  background: alpha(theme.palette.background.paper, 0.95),
+                  border: "1px solid",
+                  borderColor: "divider",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setSelectedEvent(item);
+                  setOpenDetail(true);
+                }}
               >
-                <Card
-                  sx={{
-                    borderRadius: 4,
-                    bgcolor: alpha(theme.palette.background.paper, 0.95),
-                    border: "1px solid",
-                    borderColor: "divider",
-                    boxShadow: theme.shadows[3],
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="caption" color="primary">
-                      เหตุการณ์
+                {/* ===== BADGE ล่าสุด ===== */}
+                {isNewIncident(item.createdAt) && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 12,
+                      right: 12,
+                      background: "rgba(211,47,47,.95)",
+                      color: "#fff",
+                      px: 1.5,
+                      py: 0.5,
+                      borderRadius: "999px",
+                      zIndex: 2,
+                    }}
+                  >
+                    <Typography variant="caption" fontWeight={700}>
+                      ล่าสุด!
                     </Typography>
+                  </Box>
+                )}
 
-                    <Typography variant="h6" fontWeight={700} mt={1}>
-                      {INCIDENT_TYPE_TH[ev.type] ?? ev.type}
-                    </Typography>
+                <CardContent>
+                  <Typography variant="caption" color="primary">
+                    เหตุการณ์
+                  </Typography>
 
-                    <Typography color="text.secondary" mb={2}>
-                      {ev.description}
-                    </Typography>
+                  <Typography variant="h6" fontWeight={700} mt={1}>
+                    {INCIDENT_TYPE_TH[item.type] ?? item.type}
+                  </Typography>
 
-                    {/* IMAGE */}
-                    {ev.imageUrl && (
-                      <Box
-                        sx={{
-                          position: "relative",
-                          height: 240,
-                          borderRadius: 3,
-                          overflow: "hidden",
-                          mb: 2,
-                          "& img": {
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            transition: "transform .4s ease",
-                          },
-                          "&:hover img": {
-                            transform: "scale(1.05)",
-                          },
-                        }}
-                      >
-                        <Box component="img" src={ev.imageUrl} />
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            inset: 0,
-                            background:
-                              "linear-gradient(to top, rgba(0,0,0,.55), transparent)",
-                          }}
-                        />
-                      </Box>
-                    )}
+                  <Typography color="text.secondary" mb={2}>
+                    {item.description}
+                  </Typography>
 
-                    {/* MAP BUTTON */}
-                    {ev.coordinates && (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        sx={{ borderRadius: "999px", mb: 2 }}
-                        onClick={() => {
-                          setMapCoords(ev.coordinates!);
-                          setOpenMap(true);
-                        }}
-                      >
-                        🗺️ ดูแผนที่
-                      </Button>
-                    )}
+                  {item.imageUrl && (
+                    <Box
+                      component="img"
+                      src={item.imageUrl}
+                      sx={{
+                        width: "100%",
+                        maxHeight: 260,
+                        objectFit: "cover",
+                        borderRadius: 2,
+                        cursor: "zoom-in",
+                        mb: 2,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImagePreview(item.imageUrl!);
+                        setOpenImage(true);
+                      }}
+                    />
+                  )}
 
-                    <Typography variant="body2">📍 {ev.location}</Typography>
-
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: "block", textAlign: "right", mt: 1 }}
+                  {item.coordinates && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      sx={{ borderRadius: "999px", mb: 1 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMapCoords(item.coordinates!);
+                        setSelectedEvent(item);
+                        setOpenMap(true);
+                      }}
                     >
-                      {ev.createdAt?.toDate().toLocaleString("th-TH")}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
+                      🗺️ ดูแผนที่
+                    </Button>
+                  )}
+
+                  <Typography variant="body2">
+                    📍 {item.location}
+                  </Typography>
+
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    textAlign="right"
+                    mt={1}
+                  >
+                    {item.createdAt?.toDate().toLocaleString("th-TH")}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </Box>
 
+        {/* ===== VIEW ALL ===== */}
         <Box textAlign="center" mt={6}>
           <Button
             component={Link}
@@ -237,12 +273,78 @@ export default function LatestIncidents() {
         </Box>
       </Container>
 
-      {/* MAP DIALOG */}
+      {/* ================= DETAIL POPUP ================= */}
+      <Dialog
+        open={openDetail}
+        onClose={() => setOpenDetail(false)}
+        maxWidth="sm"
+        fullWidth
+        disableScrollLock
+      >
+        <DialogTitle>
+          รายละเอียดเหตุการณ์
+          <IconButton
+            onClick={() => setOpenDetail(false)}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent>
+          {selectedEvent && (
+            <>
+              <Typography variant="h5" fontWeight={700} gutterBottom>
+                {INCIDENT_TYPE_TH[selectedEvent.type]}
+              </Typography>
+
+              <Typography mb={2}>
+                {selectedEvent.description}
+              </Typography>
+
+              <Typography>📍 {selectedEvent.location}</Typography>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= IMAGE POPUP ================= */}
+      <Dialog
+        open={openImage}
+        onClose={() => setOpenImage(false)}
+        maxWidth="md"
+        fullWidth
+        disableScrollLock
+      >
+        <DialogContent sx={{ p: 0, position: "relative" }}>
+          <IconButton
+            onClick={() => setOpenImage(false)}
+            sx={{ position: "absolute", right: 8, top: 8, zIndex: 1 }}
+          >
+            <CloseIcon />
+          </IconButton>
+
+          {imagePreview && (
+            <Box
+              component="img"
+              src={imagePreview}
+              sx={{
+                width: "100%",
+                maxHeight: "90vh",
+                objectFit: "contain",
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= MAP POPUP ================= */}
       <Dialog
         open={openMap}
         onClose={() => setOpenMap(false)}
         maxWidth="md"
         fullWidth
+        disableScrollLock
       >
         <DialogTitle>
           ตำแหน่งเหตุการณ์
@@ -253,16 +355,28 @@ export default function LatestIncidents() {
             <CloseIcon />
           </IconButton>
         </DialogTitle>
+
         <DialogContent>
-          {mapCoords && (
-            <Box sx={{ height: 400, borderRadius: 2, overflow: "hidden" }}>
+          {mapCoords && selectedEvent && (
+            <Box sx={{ height: 400 }}>
               <MapContainer
                 center={[mapCoords.lat, mapCoords.lng]}
                 zoom={15}
                 style={{ height: "100%", width: "100%" }}
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <Marker position={[mapCoords.lat, mapCoords.lng]} />
+                <Marker
+                  position={[mapCoords.lat, mapCoords.lng]}
+                  ref={markerRef}
+                >
+                  <Popup>
+                    <strong>
+                      {INCIDENT_TYPE_TH[selectedEvent.type]}
+                    </strong>
+                    <br />
+                    {selectedEvent.location}
+                  </Popup>
+                </Marker>
               </MapContainer>
             </Box>
           )}

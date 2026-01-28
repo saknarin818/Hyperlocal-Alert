@@ -3,32 +3,21 @@ import {
   Box,
   Container,
   Typography,
-  Paper,
   CircularProgress,
   Stack,
   useTheme,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
   Dialog,
   DialogTitle,
   DialogContent,
   IconButton,
-  TextField,
+  Button,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import CloseIcon from "@mui/icons-material/Close";
 
 // Icons
-import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
-import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
-import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
-import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
-import CloseIcon from "@mui/icons-material/Close";
 
 // Firebase
 import { db } from "../firebase";
@@ -36,10 +25,9 @@ import { collection, onSnapshot, query, where } from "firebase/firestore";
 
 // Components
 import Navbar from "../components/Navbar";
-
-// Leaflet
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import EventCard from "../components/EventCard";
+import EventFilter from "../components/EventFilter";
+import EventMapDialog from "../components/EventMapDialog";
 
 /* -------------------- TYPE -------------------- */
 type Incident = {
@@ -93,6 +81,10 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
   const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(
     null
   );
+
+  // Detail dialog
+  const [openDetail, setOpenDetail] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Incident | null>(null);
 
   /* -------------------- FETCH -------------------- */
   useEffect(() => {
@@ -193,143 +185,56 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
           </Stack>
 
           {/* Search + Filter */}
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={2}
-            mb={4}
-          >
-            <TextField
-              fullWidth
-              size="small"
-              label="ค้นหาเหตุการณ์"
-              placeholder="ประเภท / รายละเอียด / สถานที่"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel>หมวดเหตุการณ์</InputLabel>
-              <Select
-                label="หมวดเหตุการณ์"
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-              >
-                <MenuItem value="all">ทั้งหมด</MenuItem>
-                {categories.map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {getTypeLabel(type)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
+          <EventFilter
+            searchText={searchText}
+            selectedType={selectedType}
+            categories={categories}
+            onSearchChange={setSearchText}
+            onTypeChange={setSelectedType}
+            getTypeLabel={getTypeLabel}
+          />
 
           {/* List */}
           <Stack spacing={4}>
-            {filteredEvents.map((ev, index) => {
-              const hasCoords =
-                ev.coordinates?.lat && ev.coordinates?.lng;
-
-              return (
-                <motion.div
-                  key={ev.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Paper
-                    sx={{
-                      borderRadius: 4,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Box p={3}>
-                      <Typography variant="h6" fontWeight={800}>
-                        {getTypeLabel(ev.type)}
-                      </Typography>
-
-                      <Typography mt={1} mb={2}>
-                        {ev.description}
-                      </Typography>
-
-                      {/* Image */}
-                      {ev.imageUrl && (
-                        <Box
-                          component="img"
-                          src={ev.imageUrl}
-                          alt="incident"
-                          sx={{
-                            width: "100%",
-                            maxHeight: 260,
-                            objectFit: "cover",
-                            borderRadius: 2,
-                            mb: 2,
-                          }}
-                        />
-                      )}
-
-                      {hasCoords && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          sx={{ mb: 2, borderRadius: "999px" }}
-                          onClick={() => {
-                            setMapCoords(ev.coordinates!);
-                            setOpenMap(true);
-                          }}
-                        >
-                          🗺️ ดูแผนที่
-                        </Button>
-                      )}
-
-                      <Stack spacing={1}>
-                        <Stack direction="row" spacing={1}>
-                          <LocationOnRoundedIcon fontSize="small" />
-                          <Typography variant="body2">
-                            {ev.location || "-"}
-                          </Typography>
-                        </Stack>
-
-                        <Stack direction="row" spacing={1}>
-                          <PhoneRoundedIcon fontSize="small" />
-                          <Typography variant="body2">
-                            {ev.contact || "-"}
-                          </Typography>
-                        </Stack>
-
-                        <Stack direction="row" spacing={1}>
-                          <AccessTimeRoundedIcon fontSize="small" />
-                          <Typography variant="caption">
-                            {ev.createdAt?.toDate
-                              ? ev.createdAt
-                                  .toDate()
-                                  .toLocaleString("th-TH")
-                              : "-"}
-                          </Typography>
-                        </Stack>
-                      </Stack>
-                    </Box>
-                  </Paper>
-                </motion.div>
-              );
-            })}
+            {filteredEvents.map((ev, index) => (
+              <EventCard
+                key={ev.id}
+                incident={ev}
+                typeLabel={getTypeLabel(ev.type)}
+                index={index}
+                onMapClick={(coords) => {
+                  setMapCoords(coords);
+                  setOpenMap(true);
+                }}
+                onDetailClick={(incident) => {
+                  setSelectedEvent(incident);
+                  setOpenDetail(true);
+                }}
+              />
+            ))}
           </Stack>
         </Container>
       </Box>
 
       {/* MAP DIALOG */}
-      <Dialog
+      <EventMapDialog
         open={openMap}
+        coordinates={mapCoords}
         onClose={() => setOpenMap(false)}
-        maxWidth="md"
+      />
+
+      {/* DETAIL DIALOG */}
+      <Dialog
+        open={openDetail}
+        onClose={() => setOpenDetail(false)}
+        maxWidth="sm"
         fullWidth
+        disableScrollLock
       >
         <DialogTitle>
-          ตำแหน่งเหตุการณ์
+          รายละเอียดเหตุการณ์
           <IconButton
-            onClick={() => setOpenMap(false)}
+            onClick={() => setOpenDetail(false)}
             sx={{ position: "absolute", right: 8, top: 8 }}
           >
             <CloseIcon />
@@ -337,19 +242,89 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
         </DialogTitle>
 
         <DialogContent>
-          {mapCoords && (
-            <Box sx={{ height: 420, borderRadius: 2, overflow: "hidden" }}>
-              <MapContainer
-                center={[mapCoords.lat, mapCoords.lng]}
-                zoom={16}
-                style={{ height: "100%", width: "100%" }}
-              >
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <Marker
-                  position={[mapCoords.lat, mapCoords.lng]}
+          {selectedEvent && (
+            <>
+              {/* ===== IMAGE ===== */}
+              {selectedEvent.imageUrl && (
+                <Box
+                  component="img"
+                  src={selectedEvent.imageUrl}
+                  sx={{
+                    width: "100%",
+                    maxHeight: 300,
+                    objectFit: "cover",
+                    borderRadius: 2,
+                    mb: 2,
+                  }}
                 />
-              </MapContainer>
-            </Box>
+              )}
+
+              {/* ===== TYPE ===== */}
+              <Typography variant="caption" color="primary" fontWeight={700}>
+                ประเภทเหตุการณ์
+              </Typography>
+              <Typography variant="h5" fontWeight={700} gutterBottom>
+                {getTypeLabel(selectedEvent.type)}
+              </Typography>
+
+              {/* ===== DESCRIPTION ===== */}
+              <Typography
+                variant="caption"
+                color="primary"
+                fontWeight={700}
+                display="block"
+                mt={2}
+              >
+                รายละเอียด
+              </Typography>
+              <Typography variant="body2" mb={2} sx={{ whiteSpace: "pre-wrap" }}>
+                {selectedEvent.description}
+              </Typography>
+
+              {/* ===== LOCATION ===== */}
+              <Typography variant="caption" color="primary" fontWeight={700} display="block">
+                📍 ที่ตั้ง
+              </Typography>
+              <Typography variant="body2" mb={2}>
+                {selectedEvent.location}
+              </Typography>
+
+              {/* ===== CONTACT ===== */}
+              <Typography variant="caption" color="primary" fontWeight={700} display="block">
+                📞 ติดต่อ
+              </Typography>
+              <Typography variant="body2" mb={2}>
+                {selectedEvent.contact || "-"}
+              </Typography>
+
+              {/* ===== DATE ===== */}
+              {selectedEvent.createdAt && (
+                <>
+                  <Typography variant="caption" color="primary" fontWeight={700} display="block">
+                    เวลาที่รายงาน
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={2}>
+                    {selectedEvent.createdAt.toDate().toLocaleString("th-TH")}
+                  </Typography>
+                </>
+              )}
+
+              {/* ===== VIEW MAP ===== */}
+              {selectedEvent.coordinates && (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  sx={{ borderRadius: 2, mt: 2 }}
+                  onClick={() => {
+                    setMapCoords(selectedEvent.coordinates!);
+                    setOpenDetail(false);
+                    setTimeout(() => setOpenMap(true), 300);
+                  }}
+                >
+                  🗺️ ดูแผนที่ตำแหน่ง
+                </Button>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>

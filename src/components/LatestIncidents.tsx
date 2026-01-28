@@ -213,13 +213,7 @@ export default function LatestIncidents() {
                         maxHeight: 260,
                         objectFit: "cover",
                         borderRadius: 2,
-                        cursor: "zoom-in",
                         mb: 2,
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setImagePreview(item.imageUrl!);
-                        setOpenImage(true);
                       }}
                     />
                   )}
@@ -294,15 +288,101 @@ export default function LatestIncidents() {
         <DialogContent>
           {selectedEvent && (
             <>
+              {/* ===== IMAGE ===== */}
+              {selectedEvent.imageUrl && (
+                <Box
+                  component="img"
+                  src={selectedEvent.imageUrl}
+                  sx={{
+                    width: "100%",
+                    maxHeight: 300,
+                    objectFit: "cover",
+                    borderRadius: 2,
+                    mb: 2,
+                  }}
+                />
+              )}
+
+              {/* ===== TYPE ===== */}
+              <Typography variant="caption" color="primary" fontWeight={700}>
+                ประเภทเหตุการณ์
+              </Typography>
               <Typography variant="h5" fontWeight={700} gutterBottom>
-                {INCIDENT_TYPE_TH[selectedEvent.type]}
+                {INCIDENT_TYPE_TH[selectedEvent.type] ?? selectedEvent.type}
               </Typography>
 
-              <Typography mb={2}>
+              {/* ===== DESCRIPTION ===== */}
+              <Typography variant="caption" color="primary" fontWeight={700} display="block" mt={2}>
+                รายละเอียด
+              </Typography>
+              <Typography variant="body2" mb={2} sx={{ whiteSpace: "pre-wrap" }}>
                 {selectedEvent.description}
               </Typography>
 
-              <Typography>📍 {selectedEvent.location}</Typography>
+              {/* ===== LOCATION ===== */}
+              <Typography variant="caption" color="primary" fontWeight={700} display="block">
+                📍 ที่ตั้ง
+              </Typography>
+              <Typography variant="body2" mb={2}>
+                {selectedEvent.location}
+              </Typography>
+
+              {/* ===== STATUS ===== */}
+              {selectedEvent.status && (
+                <>
+                  <Typography variant="caption" color="primary" fontWeight={700} display="block">
+                    สถานะ
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "inline-block",
+                      px: 2,
+                      py: 0.5,
+                      borderRadius: "999px",
+                      background: selectedEvent.status === "เสร็จสิ้น" ? "rgba(76,175,80,.15)" : "rgba(255,152,0,.15)",
+                      mb: 2,
+                    }}
+                  >
+                    <Typography 
+                      variant="caption" 
+                      fontWeight={700}
+                      sx={{
+                        color: selectedEvent.status === "เสร็จสิ้น" ? "#4CAF50" : "#FF9800",
+                      }}
+                    >
+                      {selectedEvent.status}
+                    </Typography>
+                  </Box>
+                </>
+              )}
+
+              {/* ===== DATE ===== */}
+              {selectedEvent.createdAt && (
+                <>
+                  <Typography variant="caption" color="primary" fontWeight={700} display="block">
+                    เวลาที่รายงาน
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={2}>
+                    {selectedEvent.createdAt.toDate().toLocaleString("th-TH")}
+                  </Typography>
+                </>
+              )}
+
+              {/* ===== VIEW MAP ===== */}
+              {selectedEvent.coordinates && (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  sx={{ borderRadius: 2, mt: 2 }}
+                  onClick={() => {
+                    setMapCoords(selectedEvent.coordinates!);
+                    setOpenDetail(false);
+                    setTimeout(() => setOpenMap(true), 300);
+                  }}
+                >
+                  🗺️ ดูแผนที่ตำแหน่ง
+                </Button>
+              )}
             </>
           )}
         </DialogContent>

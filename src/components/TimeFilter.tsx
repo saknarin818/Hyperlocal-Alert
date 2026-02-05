@@ -71,87 +71,86 @@ export default function TimeFilter({
         }}
       >
         <Stack
-          direction={{ xs: "column", md: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", md: "center" }}
-          gap={2}
-        >
-          {/* Left label */}
-          <Stack direction="row" alignItems="center" gap={1}>
-            <DateRangeIcon
-              fontSize="small"
-              sx={{ color: theme.palette.primary.main }}
-            />
-            <Typography
-              variant="subtitle2"
-              fontWeight={700}
-              color="text.primary"
-            >
-              {label}
-            </Typography>
-          </Stack>
+  direction={{ xs: "column", md: "row" }}
+  alignItems={{ xs: "flex-start", md: "center" }}
+  sx={{ width: "100%" }}
+  gap={1.2}
+>
+  {/* Label */}
+  <Stack direction="row" alignItems="center" gap={1}>
+    <DateRangeIcon
+      fontSize="small"
+      sx={{ color: theme.palette.primary.main }}
+    />
+    <Typography
+      variant="subtitle2"
+      fontWeight={700}
+      color="text.primary"
+    >
+      {label}
+    </Typography>
+  </Stack>
 
-          {/* Toggle */}
-          <ToggleButtonGroup
-  value={days}
-  exclusive
-  onChange={(_, val) => val && onChange(val)}
-  size="small"
-  sx={{
-    width: "100%",
+  {/* Toggle */}
+  <ToggleButtonGroup
+    value={days}
+    exclusive
+    onChange={(_, val) => val && onChange(val)}
+    size="small"
+    sx={{
+      ml: { xs: 0, md: "auto" }, // desktop → ชิดขวา
+      width: { xs: "100%", md: "auto" },
 
-    /* Mobile scroll */
-    overflowX: { xs: "auto", md: "visible" },
-    flexWrap: { xs: "nowrap", md: "wrap" },
-    whiteSpace: "nowrap",
+      overflowX: "auto",
+      whiteSpace: "nowrap",
+      flexWrap: "nowrap",
 
-    /* remove scrollbar */
-    "&::-webkit-scrollbar": { display: "none" },
+      "&::-webkit-scrollbar": { display: "none" },
 
-    backgroundColor: alpha(theme.palette.background.default, 0.6),
-    borderRadius: 2,
-    p: 0.5,
-    gap: 0.5,
-
-    "& .MuiToggleButton-root": {
-      flexShrink: 0, // ❗ ป้องกันปุ่มหดในมือถือ
+      backgroundColor: alpha(theme.palette.background.default, 0.6),
       borderRadius: 2,
-      border: "none",
-      px: { xs: 1.25, md: 1.5 },
-      py: { xs: 0.6, md: 0.75 },
-      fontSize: { xs: 12, md: 13 },
-      fontWeight: 600,
-      color: theme.palette.text.secondary,
-      transition: "all 0.25s ease",
+      p: 0.5,
+      gap: 0.5,
 
-      "&:hover": {
-        backgroundColor: alpha(theme.palette.primary.main, 0.1),
-        color: theme.palette.primary.main,
-      },
+      "& .MuiToggleButton-root": {
+        flexShrink: 0,
+        borderRadius: 2,
+        border: "none",
+        px: { xs: 1.25, md: 1.5 },
+        py: { xs: 0.6, md: 0.75 },
+        fontSize: { xs: 12, md: 13 },
+        fontWeight: 600,
+        color: theme.palette.text.secondary,
+        transition: "all 0.25s ease",
 
-      "&.Mui-selected": {
-        backgroundColor: theme.palette.primary.main,
-        color: "#fff",
-        boxShadow: `0 4px 12px ${alpha(
-          theme.palette.primary.main,
-          0.35
-        )}`,
         "&:hover": {
-          backgroundColor: theme.palette.primary.dark,
+          backgroundColor: alpha(theme.palette.primary.main, 0.1),
+          color: theme.palette.primary.main,
+        },
+
+        "&.Mui-selected": {
+          backgroundColor: theme.palette.primary.main,
+          color: "#fff",
+          boxShadow: `0 4px 12px ${alpha(
+            theme.palette.primary.main,
+            0.35
+          )}`,
+          "&:hover": {
+            backgroundColor: theme.palette.primary.dark,
+          },
         },
       },
-    },
-  }}
->
-  {TIME_RANGES.map((t) => (
-    <ToggleButton key={t.days} value={t.days}>
-      {t.days === 1 && <TodayIcon sx={{ fontSize: 16, mr: 0.5 }} />}
-      {t.label}
-    </ToggleButton>
-  ))}
-</ToggleButtonGroup>
+    }}
+  >
+    {TIME_RANGES.map((t) => (
+      <ToggleButton key={t.days} value={t.days}>
+        {t.days === 1 && <TodayIcon sx={{ fontSize: 16, mr: 0.5 }} />}
+        {t.label}
+      </ToggleButton>
+    ))}
+  </ToggleButtonGroup>
+</Stack>
 
-        </Stack>
       </Paper>
     </motion.div>
   );

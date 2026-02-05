@@ -22,15 +22,16 @@ import {
   Snackbar,
   Alert,
   Tooltip,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
+
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import CloseIcon from "@mui/icons-material/Close";
-import { useNavigate } from "react-router-dom";
 
+import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
-import { signOut } from "firebase/auth";
 import {
   collection,
   query,
@@ -46,7 +47,6 @@ import {
 import Navbar from "../../components/Navbar";
 
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 /* ===================== TYPE ===================== */
@@ -58,7 +58,7 @@ interface Incident {
   location: string;
   status: "กำลังตรวจสอบ" | "เสร็จสิ้น";
   createdAt?: Timestamp;
-  imageUrl?: string; // ✅ รูปจาก Firebase Storage
+  imageUrl?: string;
   coordinates?: { lat: number; lng: number } | null;
 }
 
@@ -74,18 +74,21 @@ const INCIDENT_TYPE_TH: Record<string, string> = {
   accident: "อุบัติเหตุ",
   flood: "น้ำท่วม",
   crime: "อาชญากรรม",
-  other: "อื่น ๆ",
+  other: "เหตุการณ์อื่น ๆ",
 };
 
 const getStatusColor = (status: string) =>
   status === "กำลังตรวจสอบ" ? "warning" : "success";
 
-const defaultIcon = L.icon({
-  iconUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/images/marker-icon.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
+/* ===================== TIME ===================== */
+
+const formatThaiTime = (timestamp?: Timestamp) => {
+  if (!timestamp) return "-";
+  return timestamp.toDate().toLocaleString("th-TH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
 
 /* ===================== COMPONENT ===================== */
 
@@ -94,6 +97,8 @@ export default function AdminDashboard({
   toggleTheme,
 }: AdminDashboardProps) {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,15 +110,13 @@ export default function AdminDashboard({
   const [detailIncident, setDetailIncident] =
     useState<Incident | null>(null);
 
-  const [snackOpen, setSnackOpen] = useState(false);
-  const [snackMsg, setSnackMsg] = useState("");
-  const [snackSeverity, setSnackSeverity] =
-    useState<"success" | "error">("success");
+  const [notification, setNotification] = useState<{
+    message: string;
+    time: Timestamp;
+  } | null>(null);
 
-  // State for new incident notification
-  const [notification, setNotification] = useState<string | null>(null);
+  /* ===================== AUTH ===================== */
 
-  /* ===================== AUTH GUARD ===================== */
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
       if (!user) navigate("/admin/login");
@@ -121,59 +124,55 @@ export default function AdminDashboard({
     return () => unsub();
   }, [navigate]);
 
-  /* ===================== FETCH DATA ===================== */
+  /* ===================== FIRESTORE ===================== */
+
   useEffect(() => {
-    // Listener for ALL incidents to display in the table
     const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
-    const unsubscribeTable = onSnapshot(q, (snapshot) => {
+
+    const unsubTable = onSnapshot(q, (snap) => {
       setIncidents(
-        snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Incident))
+        snap.docs.map((d) => ({ id: d.id, ...d.data() } as Incident))
       );
       setLoading(false);
     });
 
-    // Listener specifically for NEW incidents to trigger notification
-    const qNew = query(
+    const qNotify = query(
       collection(db, "incidents"),
       where("status", "==", "กำลังตรวจสอบ"),
       orderBy("createdAt", "desc")
     );
 
-    const unsubscribeNotify = onSnapshot(qNew, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        // Only trigger on 'added' and if it's not the initial data load
+    const unsubNotify = onSnapshot(qNotify, (snap) => {
+      snap.docChanges().forEach((change) => {
         if (change.type === "added") {
-          const newIncident = change.doc.data();
-          // To prevent notification on initial page load, we can check the timestamp
-          // This logic can be improved, but it's a simple way to start
-          const incidentTime = (newIncident.createdAt as Timestamp).toDate();
-          const now = new Date();
-          // If the incident was created in the last 15 seconds, show notification
-          if (now.getTime() - incidentTime.getTime() < 15000) {
-            setNotification(
-              `มีเหตุการณ์ใหม่: ${newIncident.type} ที่ ${newIncident.location}`
-            );
+          const data = change.doc.data();
+          const time = data.createdAt as Timestamp;
+          if (!time) return;
+
+          if (Date.now() - time.toDate().getTime() < 15000) {
+            setNotification({
+              message: `มีเหตุการณ์ใหม่: ${
+                INCIDENT_TYPE_TH[data.type] ?? data.type
+              }`,
+              time,
+            });
           }
         }
       });
     });
 
     return () => {
-      unsubscribeTable();
-      unsubscribeNotify();
+      unsubTable();
+      unsubNotify();
     };
   }, []);
 
   /* ===================== ACTION ===================== */
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/admin/login");
-  };
-
   const handleMarkDone = async (id: string) => {
-    const newStatus = "เสร็จสิ้น";
-    await updateDoc(doc(db, "incidents", id), { status: newStatus });
+    await updateDoc(doc(db, "incidents", id), {
+      status: "เสร็จสิ้น",
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -185,8 +184,6 @@ export default function AdminDashboard({
     setDetailIncident(incident);
     setOpenDetail(true);
   };
-
-  /* ===================== PAGINATION ===================== */
 
   const paginated = incidents.slice(
     page * rowsPerPage,
@@ -209,44 +206,105 @@ export default function AdminDashboard({
             <CircularProgress />
           ) : (
             <>
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>ประเภท</TableCell>
-                      <TableCell>รายละเอียด</TableCell>
-                      <TableCell>สถานที่</TableCell>
-                      <TableCell align="center">สถานะ</TableCell>
-                      <TableCell align="center">จัดการ</TableCell>
-                    </TableRow>
-                  </TableHead>
+              {/* ================= MOBILE ================= */}
+              {isMobile ? (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {paginated.map((row) => (
+                    <Paper key={row.id} sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography fontWeight="bold">
+                        {INCIDENT_TYPE_TH[row.type]}
+                      </Typography>
 
-                  <TableBody>
-                    {paginated.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>
-                          {INCIDENT_TYPE_TH[row.type] ?? row.type}
-                        </TableCell>
-                        <TableCell>{row.description}</TableCell>
-                        <TableCell>{row.location}</TableCell>
-                        <TableCell align="center">
-                          <Chip
-                            label={row.status}
-                            color={getStatusColor(row.status)}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell align="center">
-                          <Tooltip title="ดูรายละเอียด">
-                            <IconButton
-                              color="primary"
-                              onClick={() => handleViewDetail(row)}
-                            >
-                              <VisibilityIcon />
+                      <Typography variant="body2" color="text.secondary">
+                        {row.description}
+                      </Typography>
+
+                      <Typography variant="body2" mt={1}>
+                        📍 {row.location}
+                      </Typography>
+
+                      <Typography variant="caption" color="text.secondary">
+                        🕒 {formatThaiTime(row.createdAt)}
+                      </Typography>
+
+                      <Box mt={1}>
+                        <Chip
+                          label={row.status}
+                          color={getStatusColor(row.status)}
+                          size="small"
+                        />
+                      </Box>
+
+                      <Box
+                        mt={1.5}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          gap: 1,
+                        }}
+                      >
+                        {/* 👁️ ไอคอนตาสีน้ำเงิน */}
+                        <IconButton onClick={() => handleViewDetail(row)}>
+                          <VisibilityIcon sx={{ color: "primary.main" }} />
+                        </IconButton>
+
+                        <IconButton
+                          color="success"
+                          disabled={row.status === "เสร็จสิ้น"}
+                          onClick={() => handleMarkDone(row.id)}
+                        >
+                          <CheckCircleIcon />
+                        </IconButton>
+
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDelete(row.id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              ) : (
+                /* ================= DESKTOP ================= */
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>ประเภท</TableCell>
+                        <TableCell>รายละเอียด</TableCell>
+                        <TableCell>สถานที่</TableCell>
+                        <TableCell>เวลาแจ้งเหตุ</TableCell>
+                        <TableCell align="center">สถานะ</TableCell>
+                        <TableCell align="center">จัดการ</TableCell>
+                      </TableRow>
+                    </TableHead>
+
+                    <TableBody>
+                      {paginated.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            {INCIDENT_TYPE_TH[row.type]}
+                          </TableCell>
+                          <TableCell>{row.description}</TableCell>
+                          <TableCell>{row.location}</TableCell>
+                          <TableCell>
+                            {formatThaiTime(row.createdAt)}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={row.status}
+                              color={getStatusColor(row.status)}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            {/* 👁️ ไอคอนตาสีน้ำเงิน */}
+                            <IconButton onClick={() => handleViewDetail(row)}>
+                              <VisibilityIcon sx={{ color: "primary.main" }} />
                             </IconButton>
-                          </Tooltip>
 
-                          <Tooltip title="เสร็จสิ้น">
                             <IconButton
                               color="success"
                               disabled={row.status === "เสร็จสิ้น"}
@@ -254,22 +312,20 @@ export default function AdminDashboard({
                             >
                               <CheckCircleIcon />
                             </IconButton>
-                          </Tooltip>
 
-                          <Tooltip title="ลบ">
                             <IconButton
                               color="error"
                               onClick={() => handleDelete(row.id)}
                             >
                               <DeleteIcon />
                             </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
 
               <TablePagination
                 component="div"
@@ -286,7 +342,8 @@ export default function AdminDashboard({
         </Paper>
       </Container>
 
-      {/* ===================== DETAIL DIALOG ===================== */}
+      {/* ================= DETAIL ================= */}
+
       <Dialog
         open={openDetail}
         onClose={() => setOpenDetail(false)}
@@ -298,31 +355,33 @@ export default function AdminDashboard({
         <DialogContent dividers>
           {detailIncident && (
             <>
-              <Typography fontWeight="bold" mb={1}>
-                {INCIDENT_TYPE_TH[detailIncident.type] ??
-                  detailIncident.type}
+              <Typography fontWeight="bold">
+                {INCIDENT_TYPE_TH[detailIncident.type]}
               </Typography>
 
-              <Typography mb={2}>
+              <Typography variant="caption" color="text.secondary">
+                เวลาแจ้งเหตุ: {formatThaiTime(detailIncident.createdAt)}
+              </Typography>
+
+              <Typography my={2}>
                 {detailIncident.description}
               </Typography>
 
-              {/* รูป */}
               {detailIncident.imageUrl && (
                 <Box
                   component="img"
                   src={detailIncident.imageUrl}
                   sx={{
                     width: "100%",
-                    maxHeight: 350,
-                    objectFit: "cover",
+                    maxHeight: { xs: 240, md: 350 },
+                    objectFit: "contain",
+                    bgcolor: "#000",
                     borderRadius: 2,
                     mb: 2,
                   }}
                 />
               )}
 
-              {/* แผนที่ */}
               {detailIncident.coordinates && (
                 <Box sx={{ height: 300 }}>
                   <MapContainer
@@ -339,7 +398,6 @@ export default function AdminDashboard({
                         detailIncident.coordinates.lat,
                         detailIncident.coordinates.lng,
                       ]}
-                      icon={defaultIcon}
                     />
                   </MapContainer>
                 </Box>
@@ -353,19 +411,21 @@ export default function AdminDashboard({
         </DialogActions>
       </Dialog>
 
-      {/* ===================== NEW INCIDENT NOTIFICATION ===================== */}
+      {/* ================= NOTIFICATION ================= */}
+
       <Snackbar
         open={!!notification}
         autoHideDuration={6000}
         onClose={() => setNotification(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert
-          onClose={() => setNotification(null)}
-          severity="info"
-          sx={{ width: "100%" }}
-        >
-          {notification}
+        <Alert severity="info">
+          <Typography fontWeight="bold">
+            {notification?.message}
+          </Typography>
+          <Typography variant="caption">
+            {formatThaiTime(notification?.time)}
+          </Typography>
         </Alert>
       </Snackbar>
     </Box>

@@ -8,31 +8,29 @@ import {
   Stack,
   useTheme,
 } from "@mui/material";
-import { Bar, Line, Pie } from "react-chartjs-2";
+import { Bar, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
   ArcElement,
   Title,
   Tooltip,
   Legend,
-  PointElement,
 } from "chart.js";
+import ChartDataLabels from "chartjs-plugin-datalabels";
 import { Timestamp } from "firebase/firestore";
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
   ArcElement,
-  PointElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartDataLabels,
 );
 
 /* ================= TYPES ================= */
@@ -60,14 +58,14 @@ const typeLabelTH: Record<string, string> = {
   other: "เหตุการณ์อื่น ๆ",
 };
 
-type ChartType = "bar" | "line" | "pie";
+type ChartType = "bar" | "doughnut";
 
 type IncidentsChartProps = {
   incidents: Incident[];
   loading: boolean;
 };
 
-/* ================= PROCESS DATA FOR CHARTS ================= */
+/* ================= PROCESS DATA ================= */
 const processDataForCharts = (incidents: Incident[]) => {
   const counts: Record<string, number> = {};
   incidents.forEach((i) => {
@@ -75,17 +73,19 @@ const processDataForCharts = (incidents: Incident[]) => {
     counts[label] = (counts[label] || 0) + 1;
   });
 
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
   const colors = [
-    "rgba(255,99,132,0.6)",
-    "rgba(54,162,235,0.6)",
-    "rgba(255,206,86,0.6)",
-    "rgba(75,192,192,0.6)",
-    "rgba(153,102,255,0.6)",
-    "rgba(255,159,64,0.6)",
-    "rgba(199,199,199,0.6)",
-    "rgba(83,102,255,0.6)",
-    "rgba(255,99,255,0.6)",
-    "rgba(99,255,132,0.6)",
+    "#ff6384",
+    "#36a2eb",
+    "#ffce56",
+    "#4bc0c0",
+    "#9966ff",
+    "#ff9f40",
+    "#8bc34a",
+    "#00bcd4",
+    "#e91e63",
+    "#607d8b",
   ];
 
   return {
@@ -94,15 +94,13 @@ const processDataForCharts = (incidents: Incident[]) => {
       {
         label: "จำนวนเหตุการณ์",
         data: Object.values(counts),
-        backgroundColor: colors.slice(0, Object.keys(counts).length),
-        borderColor: colors.slice(0, Object.keys(counts).length).map((c) =>
-          c.replace("0.6", "1")
-        ),
-        borderWidth: 2,
-        borderRadius: 6,
-        tension: 0.4,
+        backgroundColor: colors,
+        borderWidth: 0,
+        borderRadius: 8,
+        hoverOffset: 6,
       },
     ],
+    total,
   };
 };
 
@@ -113,22 +111,39 @@ export default function IncidentsChart({
   const theme = useTheme();
   const [chartType, setChartType] = React.useState<ChartType>("bar");
 
-  const chartData = processDataForCharts(incidents);
+  const { labels, datasets, total } = processDataForCharts(incidents);
 
-  const chartOptions = {
+  const chartData = { labels, datasets };
+
+  const chartOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { labels: { color: theme.palette.text.primary } },
+      legend: {
+        labels: { color: theme.palette.text.primary },
+        position: "bottom",
+      },
       title: {
         display: true,
         text: "สรุปจำนวนเหตุการณ์ตามประเภท",
         color: theme.palette.text.primary,
         font: { size: 18 },
       },
+      datalabels:
+        chartType === "doughnut"
+          ? {
+              color: "#fff",
+              font: { weight: "bold", size: 14 },
+              formatter: (value: number) => {
+                const percent = ((value / total) * 100).toFixed(0);
+                return percent + "%";
+              },
+            }
+          : false,
     },
+    cutout: chartType === "doughnut" ? "65%" : undefined,
     scales:
-      chartType !== "pie"
+      chartType === "bar"
         ? {
             x: { ticks: { color: theme.palette.text.secondary } },
             y: { ticks: { color: theme.palette.text.secondary } },
@@ -137,10 +152,22 @@ export default function IncidentsChart({
   };
 
   return (
-    <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+    <Paper
+      sx={{
+        p: 3,
+        borderRadius: 4,
+        mb: 4,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+      }}
+    >
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mb: 3 }}
+      >
         <Typography variant="h6" fontWeight={700}>
-          สรุปสถิติ
+          📊 สรุปสถิติ
         </Typography>
 
         <ToggleButtonGroup
@@ -148,27 +175,51 @@ export default function IncidentsChart({
           exclusive
           onChange={(_, val) => val && setChartType(val)}
           size="small"
+          sx={{
+            "& .MuiToggleButton-root": {
+              border: "none",
+              px: 2,
+              borderRadius: 2,
+              fontWeight: 600,
+              textTransform: "none",
+              backgroundColor: "transparent",
+              color: "text.secondary",
+              transition: "all .2s ease",
+
+              "&:hover": {
+                backgroundColor: "transparent",
+                opacity: 0.8,
+              },
+
+              "&.Mui-selected": {
+                backgroundColor: "primary.main",
+                color: "#fff",
+              },
+
+              "&.Mui-selected:hover": {
+                backgroundColor: "primary.dark",
+              },
+            },
+          }}
         >
-          <ToggleButton value="bar">📊 แท่ง</ToggleButton>
-          <ToggleButton value="line">📈 เส้น</ToggleButton>
-          <ToggleButton value="pie">🥧 วงกลม</ToggleButton>
+          <ToggleButton value="bar">แท่ง</ToggleButton>
+          <ToggleButton value="doughnut">โดนัท</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
       {loading ? (
         <Typography color="text.secondary">กำลังโหลดข้อมูล...</Typography>
       ) : incidents.length === 0 ? (
-        <Typography color="text.secondary">ไม่มีข้อมูลในช่วงเวลาที่เลือก</Typography>
+        <Typography color="text.secondary">
+          ไม่มีข้อมูลในช่วงเวลาที่เลือก
+        </Typography>
       ) : (
         <Box sx={{ height: 420 }}>
           {chartType === "bar" && (
             <Bar data={chartData} options={chartOptions} />
           )}
-          {chartType === "line" && (
-            <Line data={chartData} options={chartOptions} />
-          )}
-          {chartType === "pie" && (
-            <Pie data={chartData} options={chartOptions} />
+          {chartType === "doughnut" && (
+            <Doughnut data={chartData} options={chartOptions} />
           )}
         </Box>
       )}

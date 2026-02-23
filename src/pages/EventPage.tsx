@@ -36,7 +36,7 @@ type Incident = {
   description: string;
   location?: string;
   contact?: string;
-  imageUrl?: string; // ✅ รูปภาพ
+  imageUrl?: string; 
   createdAt?: any;
   coordinates?: {
     lat: number;

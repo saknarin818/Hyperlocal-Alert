@@ -17,6 +17,9 @@ import PrivateRoute from "./components/PrivateRoute";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 
+// นำเข้า ยามรักษาความปลอดภัย (ProtectedRoute)
+import ProtectedRoute from "./components/ProtectedRoute";
+
 // 👉 กำหนด type ของ props
 type AppProps = {
   mode: "light" | "dark";
@@ -59,7 +62,7 @@ function App({ mode, toggleTheme }: AppProps) {
     <>
       <Router>
         <Routes>
-          {/* หน้าหลัก (Public) */}
+          {/* หน้าหลัก (Public) - ใครๆ ก็เข้าได้ */}
           <Route
             path="/"
             element={<LandingPage mode={mode} toggleTheme={toggleTheme} />}
@@ -76,12 +79,6 @@ function App({ mode, toggleTheme }: AppProps) {
             element={<AdminLoginPage />}
           />
 
-          {/* Admin Dashboard */}
-          <Route
-            path="/admin/dashboard"
-            element={<AdminDashboard mode={mode} toggleTheme={toggleTheme} />}
-          />
-
           <Route path="/history" element={<Historypage mode={mode} toggleTheme={toggleTheme} />} />
 
           <Route
@@ -90,9 +87,9 @@ function App({ mode, toggleTheme }: AppProps) {
           />
 
           {/* <Route
-            path="/subscribe" // Add this route
+            path="/subscribe" 
             element={<SubscribePage mode={mode} toggleTheme={toggleTheme} />}
-          /> */}
+          />  */}
 
           <Route
             path="/register"
@@ -116,6 +113,16 @@ function App({ mode, toggleTheme }: AppProps) {
           <Route
             path="/forgot-password"
             element={<ForgotPasswordPage />}
+          />
+
+          {/* 🛡️ Admin Dashboard - ต้องล็อกอินก่อนถึงจะเข้าได้ (ครอบด้วย ProtectedRoute) */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard mode={mode} toggleTheme={toggleTheme} />
+              </ProtectedRoute>
+            }
           />
 
         </Routes>

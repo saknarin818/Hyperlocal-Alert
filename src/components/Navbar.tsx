@@ -23,7 +23,7 @@ export type NavbarProps = {
 };
 
 const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
-  const theme = useTheme(); // ✅ ดึง theme ปัจจุบัน
+  const theme = useTheme(); 
 
   const links = [
     { title: "ดูเหตุการณ์", href: "/event" },
@@ -53,7 +53,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
           sx={{
             textDecoration: "none",
             fontWeight: 700,
-            color: theme.palette.text.primary, // ✅ เปลี่ยนตาม theme
+            color: theme.palette.text.primary, 
           }}
         >
           Hyperlocal Community Alert
@@ -72,7 +72,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
               component={Link}
               to={link.href}
               sx={{
-                color: theme.palette.text.primary, // ✅
+                color: theme.palette.text.primary, 
                 "&:hover": {
                   bgcolor: theme.palette.action.hover,
                 },
@@ -86,7 +86,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
           <Tooltip title="เปลี่ยนธีม">
             <IconButton
               onClick={toggleTheme}
-              sx={{ color: theme.palette.text.primary }} // ✅
+              sx={{ color: theme.palette.text.primary }} 
             >
               {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
             </IconButton>
@@ -97,7 +97,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
         <Box sx={{ display: { xs: "flex", md: "none" } }}>
           <IconButton
             onClick={(e) => setAnchorElNav(e.currentTarget)}
-            sx={{ color: theme.palette.text.primary }} // ✅
+            sx={{ color: theme.palette.text.primary }} 
           >
             <MenuIcon />
           </IconButton>

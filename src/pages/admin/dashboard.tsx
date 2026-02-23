@@ -243,7 +243,6 @@ export default function AdminDashboard({
                           gap: 1,
                         }}
                       >
-                        {/* 👁️ ไอคอนตาสีน้ำเงิน */}
                         <IconButton onClick={() => handleViewDetail(row)}>
                           <VisibilityIcon sx={{ color: "primary.main" }} />
                         </IconButton>
@@ -300,7 +299,7 @@ export default function AdminDashboard({
                             />
                           </TableCell>
                           <TableCell align="center">
-                            {/* 👁️ ไอคอนตาสีน้ำเงิน */}
+                            
                             <IconButton onClick={() => handleViewDetail(row)}>
                               <VisibilityIcon sx={{ color: "primary.main" }} />
                             </IconButton>

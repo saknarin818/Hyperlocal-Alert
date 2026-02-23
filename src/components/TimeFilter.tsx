@@ -32,7 +32,7 @@ export const TIME_RANGES: TimeRangeOption[] = [
    Props
 ================================ */
 type TimeFilterProps = {
-  days: number;                 // ใช้ filter จริง
+  days: number;                 
   onChange: (days: number) => void;
   label?: string;
 };

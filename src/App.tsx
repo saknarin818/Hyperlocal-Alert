@@ -10,7 +10,12 @@ import AdminLoginPage from "./pages/admin/login";
 import AdminDashboard from "./pages/admin/dashboard";
 import Historypage from "./pages/Historypage";
 import EventPage from "./pages/EventPage";
-import SubscribePage from "./pages/SubscribePage";
+// import SubscribePage from "./pages/SubscribePage";
+import RegisterPage from "./pages/RegisterPage";
+import ProfilePage from "./pages/ProfilePage";
+import PrivateRoute from "./components/PrivateRoute";
+import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 
 // 👉 กำหนด type ของ props
 type AppProps = {
@@ -84,9 +89,33 @@ function App({ mode, toggleTheme }: AppProps) {
             element={<EventPage mode={mode} toggleTheme={toggleTheme} />}
           />
 
-          <Route
+          {/* <Route
             path="/subscribe" // Add this route
             element={<SubscribePage mode={mode} toggleTheme={toggleTheme} />}
+          /> */}
+
+          <Route
+            path="/register"
+            element={<RegisterPage mode={mode} toggleTheme={toggleTheme} />}
+          />
+
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <ProfilePage mode={mode} toggleTheme={toggleTheme} />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/login"
+            element={<LoginPage mode={mode} toggleTheme={toggleTheme} />}
+          />
+
+          <Route
+            path="/forgot-password"
+            element={<ForgotPasswordPage />}
           />
 
         </Routes>

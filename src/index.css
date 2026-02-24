@@ -5,9 +5,29 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* เพิ่มสีพื้นหลังเพื่อให้เข้ากับธีม Dark Mode ที่คุณต้องการ */
+  background-color: #0f172a; 
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* ============================================================ */
+/* 🛠️ ส่วนที่แก้ไข: ป้องกันไอคอนดวงตาซ้อนกัน (Browser Eye Icon Fix) */
+/* ============================================================ */
+
+/* ปิดไอคอนดวงตาและปุ่มกากบาทของ Microsoft Edge */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+/* ปิดไอคอนดวงตาและปุ่มช่วยจำรหัสผ่านของ Chrome / Safari / Edge */
+input::-webkit-contacts-auto-fill-button, 
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
 }

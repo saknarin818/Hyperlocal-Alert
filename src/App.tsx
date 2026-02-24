@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
@@ -10,36 +9,26 @@ import AdminLoginPage from "./pages/admin/login";
 import AdminDashboard from "./pages/admin/dashboard";
 import Historypage from "./pages/Historypage";
 import EventPage from "./pages/EventPage";
-// import SubscribePage from "./pages/SubscribePage";
 import RegisterPage from "./pages/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
-import PrivateRoute from "./components/PrivateRoute";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 
-// นำเข้า ยามรักษาความปลอดภัย (ProtectedRoute)
 import ProtectedRoute from "./components/ProtectedRoute";
+import PrivateRoute from "./components/PrivateRoute";
+import { AuthProvider } from "./context/AuthContext";
 
-// 👉 กำหนด type ของ props
 type AppProps = {
   mode: "light" | "dark";
   toggleTheme: () => void;
 };
 
 function App({ mode, toggleTheme }: AppProps) {
-  // --- 2. เพิ่ม State สำหรับจัดการ Snackbar ---
-  const [notification, setNotification] = useState<{
-    title: string;
-    body: string;
-  } | null>(null);
-  const [snackOpen, setSnackOpen] = useState(false); // First declaration
+  const [notification, setNotification] = useState<{ title: string; body: string; } | null>(null);
+  const [snackOpen, setSnackOpen] = useState(false);
 
-  // --- 3. เพิ่ม useEffect เพื่อดักฟังข้อความ ---
   useEffect(() => {
-    // onForegroundMessage จะทำงานเมื่อมี push notification เข้ามาตอนแอปเปิดอยู่
     onForegroundMessage((payload) => {
-      console.log("Foreground message received:", payload);
-
       const { title, body } = payload.notification || {};
       if (title && body) {
         setNotification({ title, body });
@@ -48,99 +37,35 @@ function App({ mode, toggleTheme }: AppProps) {
     });
   }, []);
 
-  const handleSnackClose = () => {
-    setSnackOpen(false);
-  };
-
-  const isLoading = false; // useSomeLoadingState(); // Replace with your actual loading state
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+  const handleSnackClose = () => setSnackOpen(false);
 
   return (
-    <>
+    <AuthProvider>
       <Router>
         <Routes>
-          {/* หน้าหลัก (Public) - ใครๆ ก็เข้าได้ */}
-          <Route
-            path="/"
-            element={<LandingPage mode={mode} toggleTheme={toggleTheme} />}
-          />
-
-          <Route
-            path="/report"
-            element={<ReportIncidentPage mode={mode} toggleTheme={toggleTheme} />}
-          />
-
-          {/* หน้า Login (Admin) */}
-          <Route
-            path="/admin/login"
-            element={<AdminLoginPage />}
-          />
-
+          <Route path="/" element={<LandingPage mode={mode} toggleTheme={toggleTheme} />} />
+          <Route path="/report" element={<ReportIncidentPage mode={mode} toggleTheme={toggleTheme} />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/history" element={<Historypage mode={mode} toggleTheme={toggleTheme} />} />
+          <Route path="/event" element={<EventPage mode={mode} toggleTheme={toggleTheme} />} />
+          <Route path="/register" element={<RegisterPage mode={mode} toggleTheme={toggleTheme} />} />
+          <Route path="/login" element={<LoginPage mode={mode} toggleTheme={toggleTheme} />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage mode={mode} toggleTheme={toggleTheme} />} />
 
-          <Route
-            path="/event"
-            element={<EventPage mode={mode} toggleTheme={toggleTheme} />}
-          />
+          {/* User ทั่วไป (ต้องล็อกอิน) */}
+          <Route path="/profile" element={<PrivateRoute><ProfilePage mode={mode} toggleTheme={toggleTheme} /></PrivateRoute>} />
 
-          {/* <Route
-            path="/subscribe" 
-            element={<SubscribePage mode={mode} toggleTheme={toggleTheme} />}
-          />  */}
-
-          <Route
-            path="/register"
-            element={<RegisterPage mode={mode} toggleTheme={toggleTheme} />}
-          />
-
-          <Route
-            path="/profile"
-            element={
-              <PrivateRoute>
-                <ProfilePage mode={mode} toggleTheme={toggleTheme} />
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/login"
-            element={<LoginPage mode={mode} toggleTheme={toggleTheme} />}
-          />
-
-          <Route
-            path="/forgot-password"
-            element={<ForgotPasswordPage />}
-          />
-
-          {/* 🛡️ Admin Dashboard - ต้องล็อกอินก่อนถึงจะเข้าได้ (ครอบด้วย ProtectedRoute) */}
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedRoute>
-                <AdminDashboard mode={mode} toggleTheme={toggleTheme} />
-              </ProtectedRoute>
-            }
-          />
-
+          {/* Admin (ต้องล็อกอินและเป็น Admin) */}
+          <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard mode={mode} toggleTheme={toggleTheme} /></ProtectedRoute>} />
         </Routes>
       </Router>
 
-      {/* --- 4. เพิ่ม Component Snackbar เข้าไป --- */}
-      <Snackbar
-        open={snackOpen}
-        autoHideDuration={6000} // ปิดเองใน 6 วินาที
-        onClose={handleSnackClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }} // แสดงด้านบนตรงกลาง
-      >
+      <Snackbar open={snackOpen} autoHideDuration={6000} onClose={handleSnackClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
         <Alert onClose={handleSnackClose} severity="info" sx={{ width: '100%' }}>
-          <strong>{notification?.title}</strong><br />
-          {notification?.body}
+          <strong>{notification?.title}</strong><br />{notification?.body}
         </Alert>
       </Snackbar>
-    </>
+    </AuthProvider>
   );
 }
 

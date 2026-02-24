@@ -26,7 +26,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import { doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../../firebase";
 
 /* ===================== TYPE ===================== */
 interface Incident {

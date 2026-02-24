@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import {
   AppBar, Toolbar, Typography, Button, Stack, IconButton,
   Menu, MenuItem, Box, Tooltip, Divider, Avatar,
-  // 🔹 นำเข้าคอมโพเนนต์สำหรับทำ Dialog
-  Dialog, DialogTitle, DialogContent, DialogActions
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  List, ListItemButton, ListItemIcon, ListItemText
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 
@@ -15,7 +15,11 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PersonIcon from "@mui/icons-material/Person";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline"; // ไอคอนสำหรับ Dialog
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import LocalPhoneIcon from "@mui/icons-material/LocalPhone"; // ไอคอนเบอร์โทร
+import LocalHospitalIcon from "@mui/icons-material/LocalHospital"; // ไอคอนโรงพยาบาล
+import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment"; // ไอคอนดับเพลิง
+import LocalPoliceIcon from "@mui/icons-material/LocalPolice"; // ไอคอนตำรวจ
 
 import { useAuth } from "../context/AuthContext";
 import { signOut } from "firebase/auth";
@@ -31,17 +35,17 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
   const { user, role } = useAuth(); 
 
   const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
-
-  // 🔹 State สำหรับควบคุมการเปิด/ปิดหน้าต่างยืนยันการออกจากระบบ
+  
+  // State สำหรับควบคุม Dialog
   const [openLogoutDialog, setOpenLogoutDialog] = useState(false);
+  const [openEmergencyDialog, setOpenEmergencyDialog] = useState(false);
 
   const isDark = mode === "dark";
 
-  // 🔹 ฟังก์ชันออกจากระบบ (ทำงานเมื่อกดยืนยันใน Dialog)
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      setOpenLogoutDialog(false); // ปิด Dialog หลังออกสำเร็จ
+      setOpenLogoutDialog(false); 
     } catch (error) {
       console.error("Error signing out: ", error);
     }
@@ -82,13 +86,26 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
             alignItems="center"
             sx={{ display: { xs: "none", md: "flex" } }}
           >
+            {/* 🔹 ปุ่มเบอร์ฉุกเฉิน Desktop */}
+            <Button 
+              onClick={() => setOpenEmergencyDialog(true)} 
+              color="error" 
+              startIcon={<LocalPhoneIcon />}
+              sx={{ fontWeight: "bold" }}
+            >
+              เบอร์ฉุกเฉิน
+            </Button>
+
             <Button component={Link} to="/event" color="inherit">ดูเหตุการณ์</Button>
-            <Button component={Link} to="/history" color="inherit">สถิติ</Button>
+            
+            {user && (
+              <>
+                <Button component={Link} to="/report" color="inherit">แจ้งเหตุ</Button>
+                <Button component={Link} to="/history" color="inherit">สถิติ</Button>
+              </>
+            )}
 
-            <IconButton onClick={toggleTheme} color="inherit" sx={{ ml: 1 }}>
-              {isDark ? <LightModeIcon /> : <DarkModeIcon />}
-            </IconButton>
-
+            {/* ส่วนของ Auth (ล็อกอิน / โปรไฟล์) */}
             {!user ? (
               <Stack direction="row" spacing={1} sx={{ ml: 1 }}>
                 <Button component={Link} to="/login" variant="text">เข้าสู่ระบบ</Button>
@@ -102,7 +119,6 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
                   </IconButton>
                 )}
 
-                {/* 👤 แสดง Avatar รูปโปรไฟล์ */}
                 <Tooltip title="โปรไฟล์">
                   <IconButton component={Link} to="/profile" sx={{ p: 0.5 }}>
                     <Avatar 
@@ -119,7 +135,6 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
                   </IconButton>
                 </Tooltip>
 
-                {/* 🔹 ปุ่มออกจากระบบ Desktop (กดแล้วเปิด Dialog) */}
                 <Tooltip title="ออกจากระบบ">
                   <IconButton onClick={() => setOpenLogoutDialog(true)} color="error">
                     <LogoutIcon fontSize="small" />
@@ -127,10 +142,28 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
                 </Tooltip>
               </Stack>
             )}
+
+            {/* ปุ่มเปลี่ยนโหมด (Theme Toggle) */}
+            <IconButton onClick={toggleTheme} color="inherit" sx={{ ml: 2 }}>
+              {isDark ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
+
           </Stack>
 
           {/* Mobile Menu */}
           <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center" }}>
+            
+            {/* 🔹 ปุ่มเบอร์ฉุกเฉินย้ายมาอยู่ข้างนอกตรงนี้ (สำหรับ Mobile) */}
+            <Button 
+              onClick={() => setOpenEmergencyDialog(true)} 
+              color="error" 
+              size="small"
+              sx={{ fontWeight: "bold", mr: 1, borderRadius: "999px", bgcolor: isDark ? "rgba(244, 67, 54, 0.1)" : "rgba(244, 67, 54, 0.1)" }}
+            >
+              <LocalPhoneIcon sx={{ mr: 0.5, fontSize: 18 }} />
+              ฉุกเฉิน
+            </Button>
+
             <IconButton onClick={(e) => setAnchorElNav(e.currentTarget)} color="inherit">
               {user ? (
                 <Avatar src={user?.photoURL || ""} sx={{ width: 32, height: 32 }} />
@@ -143,10 +176,17 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
               anchorEl={anchorElNav}
               open={Boolean(anchorElNav)}
               onClose={() => setAnchorElNav(null)}
-              PaperProps={{ sx: { width: 200, mt: 1.5 } }}
+              PaperProps={{ sx: { width: 220, mt: 1.5 } }}
             >
               <MenuItem component={Link} to="/event" onClick={() => setAnchorElNav(null)}>ดูเหตุการณ์</MenuItem>
-              <MenuItem component={Link} to="/history" onClick={() => setAnchorElNav(null)}>สถิติ</MenuItem>
+              
+              {user && (
+                <>
+                  <MenuItem component={Link} to="/report" onClick={() => setAnchorElNav(null)}>แจ้งเหตุ</MenuItem>
+                  <MenuItem component={Link} to="/history" onClick={() => setAnchorElNav(null)}>สถิติ</MenuItem>
+                </>
+              )}
+              
               <Divider />
               {!user ? (
                 <Box>
@@ -155,10 +195,9 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
                 </Box>
               ) : (
                 <Box>
-                  <MenuItem component={Link} to="/profile">โปรไฟล์</MenuItem>
-                  {role === "admin" && <MenuItem component={Link} to="/admin/dashboard">แผงควบคุมแอดมิน</MenuItem>}
+                  <MenuItem component={Link} to="/profile" onClick={() => setAnchorElNav(null)}>โปรไฟล์</MenuItem>
+                  {role === "admin" && <MenuItem component={Link} to="/admin/dashboard" onClick={() => setAnchorElNav(null)}>แผงควบคุมแอดมิน</MenuItem>}
                   
-                  {/* 🔹 ปุ่มออกจากระบบ Mobile (กดแล้วเปิด Dialog) */}
                   <MenuItem 
                     onClick={() => { 
                       setOpenLogoutDialog(true); 
@@ -171,6 +210,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
                 </Box>
               )}
               <Divider />
+              {/* ปุ่มเปลี่ยนโหมดของ Mobile */}
               <MenuItem onClick={() => { toggleTheme(); setAnchorElNav(null); }}>
                 {isDark ? "โหมดสว่าง" : "โหมดมืด"}
               </MenuItem>
@@ -178,6 +218,92 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
           </Box>
         </Toolbar>
       </AppBar>
+
+      {/* ================= EMERGENCY DIALOG (หน้าต่างเบอร์ฉุกเฉิน) ================= */}
+      <Dialog
+        open={openEmergencyDialog}
+        onClose={() => setOpenEmergencyDialog(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: isDark ? "#1e293b" : "#fff",
+            color: isDark ? "#fff" : "text.primary",
+            borderRadius: 4,
+            border: isDark ? "1px solid #334155" : "none",
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, fontWeight: 800, bgcolor: "error.main", color: "#fff" }}>
+          <LocalPhoneIcon />
+          สายด่วนฉุกเฉิน
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <List sx={{ pt: 0 }}>
+            {/* ตำรวจ 191 */}
+            <ListItemButton component="a" href="tel:191">
+              <ListItemIcon>
+                <LocalPoliceIcon color="info" fontSize="large" />
+              </ListItemIcon>
+              <ListItemText 
+                primary={<Typography variant="h6" fontWeight="bold">191</Typography>} 
+                secondary={<Typography variant="body2" color={isDark ? "gray" : "textSecondary"}>แจ้งเหตุด่วนเหตุร้าย (เหตุก่ออาชญากรรม)</Typography>} 
+              />
+            </ListItemButton>
+            <Divider />
+
+            {/* แพทย์ฉุกเฉิน 1669 */}
+            <ListItemButton component="a" href="tel:1669">
+              <ListItemIcon>
+                <LocalHospitalIcon color="success" fontSize="large" />
+              </ListItemIcon>
+              <ListItemText 
+                primary={<Typography variant="h6" fontWeight="bold">1669</Typography>} 
+                secondary={<Typography variant="body2" color={isDark ? "gray" : "textSecondary"}>เจ็บป่วยฉุกเฉิน / กู้ชีพกู้ภัย</Typography>} 
+              />
+            </ListItemButton>
+            <Divider />
+
+            {/* ดับเพลิง 199 */}
+            <ListItemButton component="a" href="tel:199">
+              <ListItemIcon>
+                <LocalFireDepartmentIcon color="error" fontSize="large" />
+              </ListItemIcon>
+              <ListItemText 
+                primary={<Typography variant="h6" fontWeight="bold">199</Typography>} 
+                secondary={<Typography variant="body2" color={isDark ? "gray" : "textSecondary"}>แจ้งเหตุไฟไหม้ / ดับเพลิง / สัตว์มีพิษเข้าบ้าน</Typography>} 
+              />
+            </ListItemButton>
+            <Divider />
+
+            {/* อุบัติเหตุบนทางหลวง 1193 */}
+            <ListItemButton component="a" href="tel:1193">
+              <ListItemIcon>
+                <LocalPhoneIcon color="warning" fontSize="large" />
+              </ListItemIcon>
+              <ListItemText 
+                primary={<Typography variant="h6" fontWeight="bold">1193</Typography>} 
+                secondary={<Typography variant="body2" color={isDark ? "gray" : "textSecondary"}>ตำรวจทางหลวง (อุบัติเหตุบนทางหลวง)</Typography>} 
+              />
+            </ListItemButton>
+          </List>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
+          <Button 
+            onClick={() => setOpenEmergencyDialog(false)} 
+            variant="contained"
+            color="inherit"
+            sx={{ 
+              borderRadius: "999px",
+              fontWeight: "bold",
+              width: "100%",
+              color: isDark ? "#000" : "#333"
+            }}
+          >
+            ปิดหน้าต่าง
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ================= LOGOUT CONFIRMATION DIALOG ================= */}
       <Dialog

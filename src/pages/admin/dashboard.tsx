@@ -1,4 +1,4 @@
-// src/pages/admin/AdminDashboard.tsx
+// src/pages/admin/dashboard.tsx
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -20,6 +20,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import GroupIcon from "@mui/icons-material/Group";
 import OnlinePredictionIcon from "@mui/icons-material/OnlinePrediction";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
@@ -30,19 +31,21 @@ import {
   onSnapshot,
   where,
   Timestamp,
-  getCountFromServer,
 } from "firebase/firestore";
 
-import AdminNavbar from "../../components/AdminNavbar";
+// Components
+import AdminNavbar from "../../components/admin/AdminNavbar";
 import IncidentsChart from "../../components/IncidentsChart";
-import AdminIncidentTable from "../../components/AdminIncidentTable";
+import AdminIncidentTable from "../../components/admin/AdminIncidentTable";
+// 🔹 Import Component ใหม่ที่เราเพิ่งสร้าง
+import AdminUserTable, { UserData } from "../../components/admin/AdminUserTable";
 
 type AdminDashboardProps = {
   mode: "light" | "dark";
   toggleTheme: () => void;
 };
 
-// Helper function สำหรับจัดการสีโปร่งใส
+// Helper function 
 function alpha(color: string, opacity: number) {
   return color + Math.round(opacity * 255).toString(16).padStart(2, '0');
 }
@@ -52,6 +55,8 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
   const isDark = mode === "dark";
 
   const [incidents, setIncidents] = useState<any[]>([]);
+  // 🔹 ระบุ Type UserData ให้กับ State 
+  const [usersList, setUsersList] = useState<UserData[]>([]); 
   const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState(0);
   const [notification, setNotification] = useState<{ message: string; time: Timestamp } | null>(null);
@@ -65,12 +70,14 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
       if (!user) navigate("/admin/login");
     });
 
-    const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
-    const unsubTable = onSnapshot(q, (snap) => {
+    // 1. ดึงข้อมูลเหตุการณ์
+    const qIncidents = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
+    const unsubIncidents = onSnapshot(qIncidents, (snap) => {
       setIncidents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
 
+    // 2. แจ้งเตือนเหตุการณ์ใหม่
     const qNotify = query(
       collection(db, "incidents"),
       where("status", "==", "กำลังตรวจสอบ"),
@@ -88,41 +95,38 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
       });
     });
 
+    // 3. ดึงข้อมูลผู้ใช้งานทั้งหมด (Real-time)
+    const qUsers = query(collection(db, "users"), orderBy("createdAt", "desc"));
+    const unsubUsers = onSnapshot(qUsers, (snap) => {
+      // 🔹 ใช้ Type UserData ตรงนี้
+      const fetchedUsers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+      setUsersList(fetchedUsers);
+      setTotalUsers(fetchedUsers.length);
+
+      // คำนวณคนที่ออนไลน์ (อัปเดตภายใน 5 นาทีที่ผ่านมา)
+      const fiveMinsAgo = Date.now() - 5 * 60 * 1000;
+      const onlineCount = fetchedUsers.filter(u => {
+        if (!u.lastOnline) return false;
+        const lastOnlineTime = u.lastOnline.toDate ? u.lastOnline.toDate().getTime() : new Date(u.lastOnline).getTime();
+        return lastOnlineTime >= fiveMinsAgo;
+      }).length;
+      
+      setOnlineUsers(onlineCount);
+    });
+
     return () => {
       unsubAuth();
-      unsubTable();
+      unsubIncidents();
       unsubNotify();
+      unsubUsers();
     };
   }, [navigate]);
-
-  /* ===================== FETCH USER STATS ===================== */
-  useEffect(() => {
-    const fetchUserStats = async () => {
-      try {
-        const usersCol = collection(db, "users");
-        const totalSnapshot = await getCountFromServer(usersCol);
-        setTotalUsers(totalSnapshot.data().count);
-
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000); 
-        const onlineQuery = query(usersCol, where("lastOnline", ">=", fiveMinutesAgo));
-        const onlineSnapshot = await getCountFromServer(onlineQuery);
-        setOnlineUsers(onlineSnapshot.data().count);
-      } catch (error) {
-        console.error("Error fetching user stats:", error);
-      }
-    };
-
-    fetchUserStats();
-    const interval = setInterval(fetchUserStats, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   /* ===================== CALCULATE STATS ===================== */
   const totalIncidents = incidents.length;
   const pendingIncidents = incidents.filter((i) => i.status === "กำลังตรวจสอบ").length;
   const resolvedIncidents = incidents.filter((i) => i.status === "เสร็จสิ้น").length;
 
-  // ข้อมูลสำหรับการ์ดสถิติ
   const summaryCards = [
     { label: "ผู้ใช้งานทั้งหมด", value: totalUsers, icon: <GroupIcon />, color: "#6366f1" },
     { label: "ออนไลน์ขณะนี้", value: onlineUsers, icon: <OnlinePredictionIcon />, color: "#10b981" },
@@ -182,7 +186,6 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
                     display: "flex",
                     alignItems: "center"
                   }}>
-                    {/* ✅ แก้ไข Error ตรงนี้โดยการเช็ค isValidElement และระบุ Type */}
                     {React.isValidElement(item.icon) && 
                       React.cloneElement(item.icon as React.ReactElement<any>, { fontSize: "medium" })
                     }
@@ -206,7 +209,8 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
           <Tabs
             value={currentTab}
             onChange={(_e, val) => setCurrentTab(val)}
-            variant="fullWidth"
+            variant="scrollable" 
+            scrollButtons="auto"
             textColor="primary"
             indicatorColor="primary"
             sx={{ 
@@ -222,14 +226,15 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
           >
             <Tab icon={<FormatListBulletedIcon />} iconPosition="start" label="รายการแจ้งเหตุ" />
             <Tab icon={<InsertChartIcon />} iconPosition="start" label="กราฟสถิติ" />
+            <Tab icon={<AccountCircleIcon />} iconPosition="start" label="ผู้ใช้งานระบบ" />
           </Tabs>
         </Box>
 
         {/* ================= CONTENT ================= */}
         <Box sx={{ transition: "0.3s" }}>
-          {currentTab === 0 ? (
-            <AdminIncidentTable incidents={incidents} loading={loading} />
-          ) : (
+          {currentTab === 0 && <AdminIncidentTable incidents={incidents} loading={loading} />}
+          
+          {currentTab === 1 && (
             <Box sx={{ 
               bgcolor: isDark ? "#1e293b" : "#fff", 
               p: 3, 
@@ -240,27 +245,16 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
                <IncidentsChart incidents={incidents} loading={loading} />
             </Box>
           )}
+
+          {/* 🔹 เรียกใช้งาน Component ที่เราแยกไว้ */}
+          {currentTab === 2 && <AdminUserTable usersList={usersList} isDark={isDark} />}
+
         </Box>
       </Container>
 
       {/* ================= NOTIFICATION ================= */}
-      <Snackbar
-        open={!!notification}
-        autoHideDuration={6000}
-        onClose={() => setNotification(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert 
-          severity="info" 
-          onClose={() => setNotification(null)}
-          sx={{ 
-            borderRadius: 3, 
-            bgcolor: isDark ? "#38bdf8" : "info.main", 
-            color: "#fff",
-            boxShadow: 4,
-            "& .MuiAlert-icon": { color: "#fff" }
-          }}
-        >
+      <Snackbar open={!!notification} autoHideDuration={6000} onClose={() => setNotification(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert severity="info" onClose={() => setNotification(null)} sx={{ borderRadius: 3, bgcolor: isDark ? "#38bdf8" : "info.main", color: "#fff", boxShadow: 4, "& .MuiAlert-icon": { color: "#fff" } }}>
           <Typography fontWeight="bold">{notification?.message}</Typography>
         </Alert>
       </Snackbar>

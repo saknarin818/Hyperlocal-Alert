@@ -1,167 +1,114 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onRequest} from "firebase-functions/v2/https";
-import {onDocumentUpdated} from "firebase-functions/v2/firestore";
+import {onDocumentUpdated, onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 
-// Initialize the Firebase Admin SDK
 admin.initializeApp();
-
-// Set global options for functions
 setGlobalOptions({maxInstances: 10});
 
-
-/**
- * Triggered when an incident's status is updated.
- * If the new status is "เสร็จสิ้น", it sends a push notification to all subscribed users.
- */
-export const notifyonincidentapproval = onDocumentUpdated("incidents/{incidentId}", async (event) => {
+// ==============================================================
+// 1. แจ้งเตือน "ทุกคน" เมื่อมีเหตุการณ์ใหม่ (Create)
+// ==============================================================
+export const notifyonnewincident = onDocumentCreated("incidents/{incidentId}", async (event) => {
   const snapshot = event.data;
-  if (!snapshot) {
-    logger.log("No data associated with the event");
-    return;
-  }
-  const newData = snapshot.after.data();
-  const oldData = snapshot.before.data();
+  if (!snapshot) return;
 
-  // Check if the status was changed to "เสร็จสิ้น" and wasn't already "เสร็จสิ้น"
-  if (newData.status !== "เสร็จสิ้น" || oldData.status === "เสร็จสิ้น") {
-    logger.log("Condition not met. No notification sent.");
-    return;
-  }
+  const incidentData = snapshot.data();
+  const usersSnapshot = await admin.firestore().collection("users").get();
+  
+  const tokens: string[] = [];
+  const tokenToUserId: Record<string, string> = {};
 
-  logger.log(
-      `Incident ${event.params.incidentId} approved. Preparing notification.`,
-  );
+  usersSnapshot.forEach((doc) => {
+    const userData = doc.data();
+    if (userData.fcmTokens && Array.isArray(userData.fcmTokens)) {
+      userData.fcmTokens.forEach((token: string) => {
+        tokens.push(token);
+        tokenToUserId[token] = doc.id;
+      });
+    }
+  });
 
-  // Get all FCM tokens from the 'fcmTokens' collection
-  const tokensSnapshot = await admin.firestore().collection("fcmTokens").get();
+  if (tokens.length === 0) return;
 
-  if (tokensSnapshot.empty) {
-    logger.log("No FCM tokens found. Cannot send notifications.");
-    return;
-  }
-
-  const tokens = tokensSnapshot.docs.map((doc) => doc.id);
-  logger.log(`Sending notification to ${tokens.length} tokens.`);
-
-  // Create the MulticastMessage directly
   const multicastMessage: admin.messaging.MulticastMessage = {
     tokens,
     notification: {
-      title: " แจ้งเตือนเหตุการณ์ใหม่!",
-      body: `ประเภท: ${newData.type || "ไม่ระบุ"} - ${
-        String(newData.description || "").slice(0, 100)
-      }...`,
+      title: "🚨 มีการแจ้งเหตุการณ์ใหม่ในพื้นที่!",
+      body: `ประเภท: ${incidentData.type || "ไม่ระบุ"} - สถานที่: ${incidentData.location || "ไม่ระบุ"}`,
     },
     webpush: {
-      notification: {
-        icon: "https://hyperlocal-alert.web.app/LOGO_CAS.png",
-      },
-      fcmOptions: {
-        link: "https://hyperlocal-alert.web.app/event",
-      },
+      notification: { icon: "https://hyperlocal-alert.web.app/LOGO_CAS.png" },
+      fcmOptions: { link: "https://hyperlocal-alert.web.app/event" },
     },
   };
 
   const response = await admin.messaging().sendEachForMulticast(multicastMessage);
 
-  // Clean up invalid or expired tokens
+  // ลบ Token ที่พัง
   const tokensToRemove: Promise<any>[] = [];
   response.responses.forEach((result, index) => {
-    const error = result.error;
-    if (error) {
-      logger.error(
-          "Failure sending notification to",
-          tokens[index],
-          error,
-      );
-      // If the token is invalid, schedule it for deletion
-      if (
-        error.code === "messaging/invalid-registration-token" ||
-        error.code === "messaging/registration-token-not-registered"
-      ) {
+    if (result.error && (result.error.code === "messaging/invalid-registration-token" || result.error.code === "messaging/registration-token-not-registered")) {
+      const userId = tokenToUserId[tokens[index]];
+      if (userId) {
         tokensToRemove.push(
-            admin.firestore().collection("fcmTokens").doc(tokens[index]).delete(),
+          admin.firestore().collection("users").doc(userId).update({
+            fcmTokens: admin.firestore.FieldValue.arrayRemove(tokens[index])
+          })
         );
       }
     }
   });
-
   await Promise.all(tokensToRemove);
 });
 
-/**
- * Sends a test push notification to all subscribed users.
- * This is an HTTP-triggered function.
- */
-export const sendtestnotification = onRequest(async (request, response) => {
-  try {
-    // Get all FCM tokens
-    const tokensSnapshot = await admin.firestore().collection("fcmTokens").get();
+// ==============================================================
+// 2. แจ้งเตือน "รายบุคคล" เมื่อเหตุการณ์อัปเดตสถานะเป็นเสร็จสิ้น (Update)
+// ==============================================================
+export const notifyonincidentapproval = onDocumentUpdated("incidents/{incidentId}", async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
 
-    if (tokensSnapshot.empty) {
-      logger.log("No FCM tokens found.");
-      response.status(404).send("No FCM tokens found.");
-      return;
+  const newData = snapshot.after.data();
+  const oldData = snapshot.before.data();
+
+  if (newData.status !== "เสร็จสิ้น" || oldData.status === "เสร็จสิ้น") return;
+
+  const targetUserId = newData.userId;
+  if (!targetUserId) return; // ถ้าไม่มี UID ข้ามการส่ง
+
+  const userDoc = await admin.firestore().collection("users").doc(targetUserId).get();
+  if (!userDoc.exists) return;
+
+  const userData = userDoc.data();
+  const tokens: string[] = userData?.fcmTokens || [];
+
+  if (tokens.length === 0) return;
+
+  const multicastMessage: admin.messaging.MulticastMessage = {
+    tokens,
+    notification: {
+      title: "✅ เหตุการณ์ของคุณดำเนินการเสร็จสิ้นแล้ว!",
+      body: `ประเภท: ${newData.type || "ไม่ระบุ"} - ${String(newData.description || "").slice(0, 100)}...`,
+    },
+    webpush: {
+      notification: { icon: "https://hyperlocal-alert.web.app/LOGO_CAS.png" },
+      fcmOptions: { link: "https://hyperlocal-alert.web.app/event" },
+    },
+  };
+
+  const response = await admin.messaging().sendEachForMulticast(multicastMessage);
+
+  const tokensToRemove: Promise<any>[] = [];
+  response.responses.forEach((result, index) => {
+    if (result.error && (result.error.code === "messaging/invalid-registration-token" || result.error.code === "messaging/registration-token-not-registered")) {
+      tokensToRemove.push(
+        admin.firestore().collection("users").doc(targetUserId).update({
+          fcmTokens: admin.firestore.FieldValue.arrayRemove(tokens[index])
+        })
+      );
     }
-
-    const tokens = tokensSnapshot.docs.map((doc) => doc.id);
-    logger.log(`Sending notification to ${tokens.length} tokens.`);
-
-    // Create the MulticastMessage directly
-    const multicastMessage: admin.messaging.MulticastMessage = {
-      tokens,
-      notification: {
-        title: "Test Notification!",
-        body: "This is a test notification from the server.",
-      },
-      webpush: {
-        notification: {
-          icon: "https://hyperlocal-alert.web.app/LOGO_CAS.png",
-        },
-        fcmOptions: {
-          link: "https://hyperlocal-alert.web.app/",
-        },
-      },
-    };
-
-    const messagingResponse = await admin.messaging().sendEachForMulticast(multicastMessage);
-
-    // Clean up invalid tokens
-    const tokensToRemove: Promise<any>[] = [];
-    messagingResponse.responses.forEach((result, index) => {
-      const error = result.error;
-      if (error) {
-        logger.error("Failure sending notification to", tokens[index], error);
-        // If the token is invalid, schedule it for deletion
-        if (
-          error.code === "messaging/invalid-registration-token" ||
-          error.code === "messaging/registration-token-not-registered"
-        ) {
-          tokensToRemove.push(
-              admin.firestore().collection("fcmTokens").doc(tokens[index]).delete(),
-          );
-        }
-      }
-    });
-
-    await Promise.all(tokensToRemove);
-
-    response.send(
-        `Successfully sent message to ${messagingResponse.successCount} devices.`,
-    );
-  } catch (error) {
-    logger.error("Error sending notification:", error);
-    response.status(500).send("Error sending notification");
-  }
+  });
+  await Promise.all(tokensToRemove);
 });

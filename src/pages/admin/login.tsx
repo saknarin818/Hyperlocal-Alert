@@ -6,10 +6,18 @@ import {
   TextField,
   Typography,
   Paper,
+  // 👉 1. นำเข้าคอมโพเนนต์สำหรับทำปุ่มในช่องกรอกข้อความ
+  InputAdornment, 
+  IconButton 
 } from "@mui/material";
+// 👉 2. นำเข้า Icon รูปดวงตา
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+
 import { useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebase";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../../firebase";
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
@@ -17,6 +25,9 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // 👉 3. เพิ่ม State สำหรับจดจำว่าตอนนี้เปิดหรือปิดรหัสผ่านอยู่
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,8 +35,18 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate("/admin/dashboard");
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists() && userDocSnap.data().role === "admin") {
+        navigate("/admin/dashboard");
+      } else {
+        await signOut(auth);
+        setError("ไม่มีสิทธิ์เข้าถึง: บัญชีนี้ไม่ใช่ผู้ดูแลระบบ");
+      }
     } catch (err: any) {
       if (err.code === "auth/invalid-credential") {
         setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
@@ -37,6 +58,9 @@ export default function AdminLoginPage() {
       setLoading(false);
     }
   };
+
+  // ฟังก์ชันสำหรับสลับการแสดงรหัสผ่าน
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
 
   return (
     <Container
@@ -71,17 +95,34 @@ export default function AdminLoginPage() {
             sx={{ mt: 2 }}
             required
           />
+          
           <TextField
             label="Password"
-            type="password"
+            // 👉 4. เปลี่ยน Type ตาม State
+            type={showPassword ? "text" : "password"} 
             fullWidth
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             sx={{ mt: 2 }}
             required
+            // 👉 5. ใส่ปุ่มดวงตาไว้ท้ายช่อง (endAdornment)
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowPassword}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
+          
           {error && (
-            <Typography color="error" sx={{ mt: 1 }}>
+            <Typography color="error" sx={{ mt: 1, fontWeight: 'bold' }}>
               {error}
             </Typography>
           )}

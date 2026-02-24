@@ -1,12 +1,16 @@
+import React from "react";
 import { Navigate } from "react-router-dom";
+import { Box, CircularProgress } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 
-export default function PrivateRoute({ children }: any) {
-  const { user } = useAuth();
+export default function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (loading) {
+    return <Box display="flex" justifyContent="center" alignItems="center" height="100vh"><CircularProgress /></Box>;
   }
 
-  return children;
+  if (!user) return <Navigate to="/login" replace />;
+
+  return <>{children}</>;
 }

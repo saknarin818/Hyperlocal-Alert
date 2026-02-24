@@ -7,8 +7,13 @@ import {
   Alert,
   TextField,
   CircularProgress,
-  Paper
+  Paper,
+  InputAdornment,
+  IconButton
 } from "@mui/material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 import Navbar from "../components/Navbar";
@@ -20,108 +25,146 @@ type LoginPageProps = {
   toggleTheme: () => void;
 };
 
-export default function LoginPage({
-  mode,
-  toggleTheme
-}: LoginPageProps) {
+export default function LoginPage({ mode, toggleTheme }: LoginPageProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const [status, setStatus] = useState<
-    "idle" | "pending" | "error"
-  >("idle");
-
+  const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState<"idle" | "pending" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
-  // ✅ ถ้า login อยู่แล้ว redirect ทันที
+  // 🔹 ตรวจสอบว่าเป็น Dark Mode หรือไม่
+  const isDark = mode === "dark";
+
+  // 🔹 สไตล์สำหรับช่องกรอกข้อมูลที่เปลี่ยนตามธีม
+  const inputStyle = {
+    "& .MuiOutlinedInput-root": {
+      // เปลี่ยนสีตัวอักษรตามธีม
+      color: isDark ? "#fff" : "inherit",
+      borderRadius: "8px",
+      "& fieldset": { 
+        borderColor: isDark ? "#334155" : "rgba(0, 0, 0, 0.23)" 
+      },
+      "&:hover fieldset": { 
+        borderColor: "#38bdf8" 
+      },
+      "&.Mui-focused fieldset": { 
+        borderColor: "#38bdf8" 
+      },
+    },
+    // สีของ Label เปลี่ยนตามธีม
+    "& .MuiInputLabel-root": { 
+      color: isDark ? "#94a3b8" : "text.secondary" 
+    },
+    "& .MuiInputLabel-root.Mui-focused": { 
+      color: "#38bdf8" 
+    },
+    mb: 2.5
+  };
+
   useEffect(() => {
     if (user) {
       navigate("/profile", { replace: true });
     }
   }, [user, navigate]);
 
-  const validateForm = () => {
-    if (!email || !password) {
-      setMessage("กรุณากรอกอีเมลและรหัสผ่าน");
-      return false;
-    }
-    return true;
-  };
-
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!email || !password) {
+      setMessage("กรุณากรอกอีเมลและรหัสผ่าน");
+      return;
+    }
 
     try {
       setMessage(null);
-
-      if (!validateForm()) return;
-
       setStatus("pending");
-
       await signInWithEmailAndPassword(auth, email, password);
       navigate("/profile", { replace: true });
-
     } catch (err: any) {
       setStatus("error");
-
-      if (err.code === "auth/user-not-found") {
-        setMessage("ไม่พบบัญชีผู้ใช้นี้");
-      } else if (err.code === "auth/wrong-password") {
-        setMessage("รหัสผ่านไม่ถูกต้อง");
-      } else if (err.code === "auth/invalid-email") {
-        setMessage("รูปแบบอีเมลไม่ถูกต้อง");
+      if (err.code === "auth/invalid-credential") {
+        setMessage("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       } else {
-        setMessage("เข้าสู่ระบบไม่สำเร็จ");
+        setMessage("เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่");
       }
     }
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <Box 
+      sx={{ 
+        display: "flex", 
+        flexDirection: "column", 
+        minHeight: "100vh", 
+        // 🔹 เปลี่ยนพื้นหลังตามธีม
+        bgcolor: isDark ? "#0f172a" : "#f8fafc",
+        transition: "0.3s" 
+      }}
+    >
       <Navbar mode={mode} toggleTheme={toggleTheme} />
 
-      <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h5" gutterBottom fontWeight="bold">
+      <Container maxWidth="sm" sx={{ display: "flex", alignItems: "center", flexGrow: 1, py: 4 }}>
+        <Paper 
+          elevation={isDark ? 0 : 3} 
+          sx={{ 
+            p: { xs: 3, md: 5 }, 
+            borderRadius: 4, 
+            width: "100%", 
+            textAlign: "center",
+            // 🔹 เปลี่ยนสีพื้นหลังกระดาษตามธีม
+            bgcolor: isDark ? "#1e293b" : "#fff", 
+            color: isDark ? "#fff" : "text.primary",
+            border: isDark ? "1px solid #334155" : "none",
+            transition: "0.3s"
+          }}
+        >
+          <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ color: "#38bdf8", mb: 1 }}>
             เข้าสู่ระบบ
+          </Typography>
+          <Typography variant="body2" sx={{ color: isDark ? "#94a3b8" : "text.secondary", mb: 4 }}>
+            ยินดีต้อนรับกลับมา! กรุณาเข้าสู่ระบบเพื่อใช้งานระบบ
           </Typography>
 
           {message && (
-            <Alert severity="error" sx={{ mt: 2 }}>
+            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
               {message}
             </Alert>
           )}
 
-          {/* ✅ ใช้ form เพื่อรองรับ Enter */}
-          <Box
-            component="form"
-            onSubmit={handleLogin}
-            sx={{
-              mt: 3,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2
-            }}
-          >
+          <Box component="form" onSubmit={handleLogin} sx={{ display: "flex", flexDirection: "column" }}>
             <TextField
-              label="อีเมล"
-              type="email"
+              label="อีเมล (Email) *"
+              variant="outlined"
               fullWidth
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              sx={inputStyle}
             />
 
             <TextField
-              label="รหัสผ่าน"
-              type="password"
+              label="รหัสผ่าน (Password) *"
+              type={showPassword ? "text" : "password"}
               fullWidth
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              sx={inputStyle}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton 
+                      onClick={() => setShowPassword(!showPassword)} 
+                      edge="end" 
+                      sx={{ color: isDark ? "#94a3b8" : "inherit" }}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
 
             <Button
@@ -129,27 +172,32 @@ export default function LoginPage({
               variant="contained"
               fullWidth
               disabled={status === "pending"}
-              sx={{ py: 1.2 }}
+              sx={{ 
+                py: 1.5, 
+                borderRadius: "999px", 
+                fontWeight: "bold",
+                fontSize: "1.1rem",
+                mt: 1,
+                bgcolor: "#2563eb",
+                "&:hover": { bgcolor: "#1d4ed8" },
+                textTransform: "none"
+              }}
             >
-              {status === "pending" ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                "เข้าสู่ระบบ"
-              )}
+              {status === "pending" ? <CircularProgress size={24} color="inherit" /> : "เข้าสู่ระบบ"}
             </Button>
 
-            <Typography variant="body2" align="center">
-              ยังไม่มีบัญชี?{" "}
-              <Link to="/register" style={{ textDecoration: "none" }}>
-                สมัครสมาชิก
-              </Link>
-            </Typography>
+            <Box sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 1.5 }}>
+              <Typography variant="body2" sx={{ color: isDark ? "#94a3b8" : "text.secondary" }}>
+                ยังไม่มีบัญชีใช่ไหม?{" "}
+                <Link to="/register" style={{ textDecoration: "none", fontWeight: "bold", color: "#38bdf8" }}>
+                  สมัครสมาชิก
+                </Link>
+              </Typography>
 
-            <Typography variant="body2" align="center">
-              <Link to="/forgot-password" style={{ textDecoration: "none" }}>
+              <Link to="/forgot-password" style={{ textDecoration: "none", color: isDark ? "#64748b" : "text.secondary", fontSize: "0.875rem" }}>
                 ลืมรหัสผ่าน?
               </Link>
-            </Typography>
+            </Box>
           </Box>
         </Paper>
       </Container>

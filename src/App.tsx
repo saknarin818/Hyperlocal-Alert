@@ -43,23 +43,31 @@ function App({ mode, toggleTheme }: AppProps) {
     <AuthProvider>
       <Router>
         <Routes>
+          {/* ========================================== */}
+          {/* 🟢 หน้าสาธารณะ (Public) - Guest เข้าดูได้เลย */}
+          {/* ========================================== */}
           <Route path="/" element={<LandingPage mode={mode} toggleTheme={toggleTheme} />} />
-          <Route path="/report" element={<ReportIncidentPage mode={mode} toggleTheme={toggleTheme} />} />
-          <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route path="/history" element={<Historypage mode={mode} toggleTheme={toggleTheme} />} />
           <Route path="/event" element={<EventPage mode={mode} toggleTheme={toggleTheme} />} />
           <Route path="/register" element={<RegisterPage mode={mode} toggleTheme={toggleTheme} />} />
           <Route path="/login" element={<LoginPage mode={mode} toggleTheme={toggleTheme} />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage mode={mode} toggleTheme={toggleTheme} />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
 
-          {/* User ทั่วไป (ต้องล็อกอิน) */}
+          {/* ========================================== */}
+          {/* 🔵 หน้าสำหรับสมาชิก (Registered User) - ต้อง Login */}
+          {/* ========================================== */}
+          <Route path="/report" element={<PrivateRoute><ReportIncidentPage mode={mode} toggleTheme={toggleTheme} /></PrivateRoute>} />
+          <Route path="/history" element={<PrivateRoute><Historypage mode={mode} toggleTheme={toggleTheme} /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><ProfilePage mode={mode} toggleTheme={toggleTheme} /></PrivateRoute>} />
 
-          {/* Admin (ต้องล็อกอินและเป็น Admin) */}
+          {/* ========================================== */}
+          {/* 🔴 หน้าสำหรับผู้ดูแลระบบ (Admin) - ต้องเป็น Admin */}
+          {/* ========================================== */}
           <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard mode={mode} toggleTheme={toggleTheme} /></ProtectedRoute>} />
         </Routes>
       </Router>
 
+      {/* แจ้งเตือน Push Notification (แสดงผลเมื่อเปิดแอปอยู่) */}
       <Snackbar open={snackOpen} autoHideDuration={6000} onClose={handleSnackClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
         <Alert onClose={handleSnackClose} severity="info" sx={{ width: '100%' }}>
           <strong>{notification?.title}</strong><br />{notification?.body}

@@ -22,17 +22,28 @@ type LandingPageProps = {
 
 export default function LandingPage({ mode, toggleTheme }: LandingPageProps) {
   const theme = useTheme();
-  
+  const isDark = mode === "dark";
+
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <Box 
+      sx={{ 
+        minHeight: "100vh", 
+        display: "flex", 
+        flexDirection: "column",
+        // 🔹 ปรับพื้นหลังตามธีมให้เข้ากับหน้า Login/Register/Profile
+        bgcolor: isDark ? "#0f172a" : "#f8fafc",
+        color: isDark ? "#fff" : "text.primary",
+        transition: "0.3s"
+      }}
+    >
       <Navbar mode={mode} toggleTheme={toggleTheme} />
 
-      {/* HERO */}
+      {/* HERO SECTION */}
       <Container
         maxWidth="lg"
         sx={{
-          pt: { xs: 5, sm: 7, md: 10 },
-          pb: { xs: 2, sm: 4, md: 6 },
+          pt: { xs: 8, sm: 10, md: 12 },
+          pb: { xs: 4, sm: 6, md: 8 },
           textAlign: "center",
         }}
       >
@@ -46,32 +57,36 @@ export default function LandingPage({ mode, toggleTheme }: LandingPageProps) {
             gutterBottom
             sx={{
               fontSize: {
-                xs: "1.9rem",
-                sm: "2.4rem",
-                md: "3rem",
-                lg: "3.4rem",
+                xs: "2.2rem",
+                sm: "3rem",
+                md: "3.8rem",
+                lg: "4.2rem",
               },
-              lineHeight: 1.2,
+              lineHeight: 1.1,
+              // 🔹 ปรับสีหัวข้อให้เด่นในโหมดมืด
+              color: isDark ? "#38bdf8" : theme.palette.primary.main,
+              mb: 2
             }}
           >
-            ระบบแจ้งเตือนเหตุการณ์เฉพาะพื้นที่
+            ระบบแจ้งเตือนเหตุการณ์<br />เฉพาะพื้นที่
           </Typography>
 
           <Typography
-            color="text.secondary"
             sx={{
               maxWidth: 720,
               mx: "auto",
-              mb: { xs: 3, md: 4 },
+              mb: { xs: 4, md: 6 },
               fontSize: {
-                xs: "0.95rem",
-                sm: "1.05rem",
-                md: "1.15rem",
+                xs: "1rem",
+                sm: "1.1rem",
+                md: "1.25rem",
               },
+              // 🔹 ปรับสีข้อความรอง
+              color: isDark ? "#94a3b8" : "text.secondary",
             }}
           >
-            ติดตามเหตุการณ์แบบเรียลไทม์ แจ้งเหตุได้ทันที
-            พร้อมรับการแจ้งเตือนในพื้นที่ของคุณ
+            ติดตามเหตุการณ์แบบเรียลไทม์ แจ้งเหตุได้ทันที <br />
+            พร้อมรับการแจ้งเตือนในพื้นที่ของคุณ เพื่อความปลอดภัยของคนในชุมชน
           </Typography>
 
           <Button
@@ -80,20 +95,24 @@ export default function LandingPage({ mode, toggleTheme }: LandingPageProps) {
             variant="contained"
             startIcon={<WarningIcon />}
             sx={{
-              px: { xs: 4, md: 6 },
-              py: { xs: 1.4, md: 1.8 },
+              px: { xs: 5, md: 8 },
+              py: { xs: 1.8, md: 2.2 },
               borderRadius: "999px",
-              fontSize: { xs: 14, md: 16 },
-              width: { xs: "100%", sm: "auto" }, // 📱 full width on mobile
+              fontSize: { xs: 16, md: 18 },
+              fontWeight: "bold",
+              width: { xs: "100%", sm: "auto" },
               maxWidth: 320,
-              boxShadow: `0 6px 18px ${alpha(
-                theme.palette.primary.main,
-                0.35
+              textTransform: "none",
+              bgcolor: "#2563eb",
+              boxShadow: `0 10px 25px ${alpha(
+                isDark ? "#2563eb" : theme.palette.primary.main,
+                0.4
               )}`,
               "&:hover": {
-                boxShadow: `0 8px 22px ${alpha(
-                  theme.palette.primary.main,
-                  0.45
+                bgcolor: "#1d4ed8",
+                boxShadow: `0 12px 30px ${alpha(
+                  isDark ? "#2563eb" : theme.palette.primary.main,
+                  0.5
                 )}`,
               },
             }}
@@ -103,26 +122,32 @@ export default function LandingPage({ mode, toggleTheme }: LandingPageProps) {
         </motion.div>
       </Container>
 
-      {/* FEED */}
-      <Box sx={{ flexGrow: 1 }}>
-        <LatestIncidents />
+      {/* FEED / INCIDENTS */}
+      <Box sx={{ flexGrow: 1, pb: 8 }}>
+        <Container maxWidth="lg">
+           <LatestIncidents />
+        </Container>
       </Box>
 
       {/* FOOTER */}
       <Box
-        py={{ xs: 3, md: 4 }}
+        py={{ xs: 4, md: 5 }}
         textAlign="center"
         sx={{
-          bgcolor: alpha(theme.palette.background.paper, 0.7),
-          backdropFilter: "blur(6px)",
+          bgcolor: isDark ? "#1e293b" : alpha(theme.palette.background.paper, 0.8),
+          backdropFilter: "blur(12px)",
+          borderTop: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
         }}
       >
         <Typography
           variant="body2"
-          color="text.secondary"
-          sx={{ fontSize: { xs: 12, md: 13 } }}
+          sx={{ 
+            color: isDark ? "#94a3b8" : "text.secondary",
+            fontSize: { xs: 13, md: 14 },
+            fontWeight: 500
+          }}
         >
-          © 2025 Hyperlocal Community Alert System 
+          © 2026 Hyperlocal Community Alert System • พัฒนาเพื่อชุมชน
         </Typography>
       </Box>
     </Box>

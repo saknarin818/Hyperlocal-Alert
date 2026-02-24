@@ -20,6 +20,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Navbar from "../components/Navbar";
 import { useTheme, alpha } from "@mui/material/styles";
+// 🔹 1. นำเข้า useAuth
+import { useAuth } from "../context/AuthContext";
 
 /* ================== TYPES ================== */
 type PageProps = {
@@ -60,6 +62,9 @@ function LocationPicker({ setPosition }: { setPosition: (pos: [number, number]) 
 export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
   const theme = useTheme();
   const isDark = mode === "dark";
+  
+  // 🔹 2. ดึงข้อมูลผู้ใช้ปัจจุบัน
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     type: "",
@@ -73,7 +78,6 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 🔹 สไตล์สำหรับ TextField ในโหมดมืด
   const inputStyle = {
     "& .MuiOutlinedInput-root": {
       color: isDark ? "#fff" : "inherit",
@@ -120,13 +124,17 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
         await uploadBytes(imageRef, imageFile);
         imageUrl = await getDownloadURL(imageRef);
       }
+      
+      // 🔹 3. เพิ่ม userId ลงในฐานข้อมูล
       await addDoc(collection(db, "incidents"), {
         ...form,
         imageUrl,
         coordinates: { lat: position[0], lng: position[1] },
         status: "กำลังตรวจสอบ",
         createdAt: Timestamp.now(),
+        userId: user?.uid || "anonymous", // เก็บ UID ของผู้แจ้ง
       });
+      
       alert("ส่งข้อมูลเรียบร้อยแล้ว");
       setForm({ type: "", description: "", location: "", contact: "" });
       setPosition(null);

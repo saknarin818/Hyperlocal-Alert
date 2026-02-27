@@ -124,7 +124,7 @@ export const notifyonincidentapproval = onDocumentUpdated("incidents/{incidentId
   const multicastMessage: admin.messaging.MulticastMessage = {
     tokens,
     notification: {
-      title: "✅ เหตุการณ์ของคุณดำเนินการเสร็จสิ้นแล้ว!",
+      title: "✅ เหตุการณ์ของคุณอนุมัติแล้ว!",
       body: `ประเภท: ${newData.type || "ไม่ระบุ"} - ${String(newData.description || "").slice(0, 100)}...`,
     },
     webpush: {

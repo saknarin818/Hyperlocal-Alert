@@ -23,7 +23,11 @@ import LocalPoliceIcon from "@mui/icons-material/LocalPolice"; // ไอคอ�
 
 import { useAuth } from "../context/AuthContext";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+
+// 👉 1. นำเข้าโมดูลเพิ่มเติมสำหรับการลบ Token แจ้งเตือน
+import { auth, db, messaging } from "../firebase";
+import { doc, updateDoc, arrayRemove } from "firebase/firestore";
+import { getToken, deleteToken } from "firebase/messaging";
 
 export type NavbarProps = {
   mode: "light" | "dark";
@@ -42,8 +46,29 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
 
   const isDark = mode === "dark";
 
+  // 👉 2. อัปเดตฟังก์ชัน handleLogout ให้จัดการลบ Token ก่อนออกจากระบบ
   const handleLogout = async () => {
     try {
+      if (user && messaging) {
+        try {
+          // ดึง Token ปัจจุบันที่ใช้งานอยู่
+          const currentToken = await getToken(messaging, {
+            vapidKey: "BIYi3H95nrSpdpGyNcwmvxyV5k3opxt6a_mR94aleJW-_upDQEaCeAhzwtYOGABnMxP2Wt7gZoohfiyomwOSzyo"
+          });
+
+          if (currentToken) {
+            // ลบ Token ปัจจุบันออกจากฐานข้อมูลผู้ใช้ (เพื่อให้หลังบ้านเลิกส่ง)
+            await updateDoc(doc(db, "users", user.uid), {
+              fcmTokens: arrayRemove(currentToken)
+            });
+            // ลบ Token ออกจากเครื่องเบราว์เซอร์ (เพื่อให้เลิกรับการแจ้งเตือน)
+            await deleteToken(messaging);
+          }
+        } catch (pushErr) {
+          console.error("เกิดข้อผิดพลาดในการลบ Token แจ้งเตือน: ", pushErr);
+        }
+      }
+
       await signOut(auth);
       setOpenLogoutDialog(false); 
     } catch (error) {
@@ -76,7 +101,7 @@ const Navbar: React.FC<NavbarProps> = ({ mode, toggleTheme }) => {
               color: isDark ? "#38bdf8" : theme.palette.primary.main,
             }}
           >
-            HCA
+            HCAS
           </Typography>
 
           {/* Desktop Menu */}

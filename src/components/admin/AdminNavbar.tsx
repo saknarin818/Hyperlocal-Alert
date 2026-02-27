@@ -77,7 +77,7 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ mode, toggleTheme }) => {
               color: theme.palette.text.primary,
             }}
           >
-            HCA
+            HCAS
           </Typography>
           
           {/* ================= DESKTOP MENU ================= */}

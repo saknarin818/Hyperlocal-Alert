@@ -9,18 +9,19 @@ import {
   MenuItem,
   Stack,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import PhotoCameraRoundedIcon from "@mui/icons-material/PhotoCameraRounded";
+import MyLocationIcon from "@mui/icons-material/MyLocation"; // 🔹 1. นำเข้าไอคอน GPS
 import { motion } from "framer-motion";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet"; // 🔹 2. นำเข้า useMap
 import { db, storage } from "../firebase";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, Timestamp, onSnapshot, query, orderBy } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Navbar from "../components/Navbar";
 import { useTheme, alpha } from "@mui/material/styles";
-// 🔹 1. นำเข้า useAuth
 import { useAuth } from "../context/AuthContext";
 
 /* ================== TYPES ================== */
@@ -28,17 +29,6 @@ type PageProps = {
   mode: "light" | "dark";
   toggleTheme: () => void;
 };
-
-/* ================== CONSTANTS ================== */
-const incidentTypes = [
-  { value: "fire", label: "ไฟไหม้" },
-  { value: "accident", label: "อุบัติเหตุ" },
-  { value: "crime", label: "อาชญากรรม" },
-  { value: "medical", label: "เหตุฉุกเฉินทางการแพทย์" },
-  { value: "utility", label: "สาธารณูปโภค" },
-  { value: "flood", label: "น้ำท่วม" },
-  { value: "other", label: "เหตุการณ์อื่น ๆ" },
-];
 
 /* ================== LEAFLET ICON FIX ================== */
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -58,12 +48,23 @@ function LocationPicker({ setPosition }: { setPosition: (pos: [number, number]) 
   return null;
 }
 
+/* ================== MAP UPDATER (ทำให้กล้องเลื่อนตาม GPS) ================== */
+// 🔹 3. ฟังก์ชันสำหรับเลื่อนแผนที่แบบสมูท
+function MapUpdater({ center }: { center: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, 16, { animate: true, duration: 1.5 }); 
+    }
+  }, [center, map]);
+  return null;
+}
+
 /* ================== MAIN PAGE ================== */
 export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
   const theme = useTheme();
   const isDark = mode === "dark";
   
-  // 🔹 2. ดึงข้อมูลผู้ใช้ปัจจุบัน
   const { user } = useAuth();
 
   const [form, setForm] = useState({
@@ -74,9 +75,13 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
   });
 
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([18.8976, 99.0157]); // 🔹 4. ค่าเริ่มต้นตำแหน่งแผนที่
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false); // 🔹 5. สถานะโหลด GPS
+  
+  const [incidentTypes, setIncidentTypes] = useState<{ id: string; label: string }[]>([]);
 
   const inputStyle = {
     "& .MuiOutlinedInput-root": {
@@ -87,6 +92,53 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
     },
     "& .MuiInputLabel-root": { color: isDark ? "#94a3b8" : "text.secondary" },
   };
+
+  // 🔹 6. ฟังก์ชันดึงพิกัด GPS
+  const getUserLocation = () => {
+    setGpsLoading(true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setPosition([latitude, longitude]); // ปักหมุด
+          setMapCenter([latitude, longitude]); // เลื่อนกล้อง
+          setGpsLoading(false);
+        },
+        (err) => {
+          console.error("GPS Error:", err);
+          setGpsLoading(false);
+        },
+        { enableHighAccuracy: true } // ขอความแม่นยำสูง
+      );
+    } else {
+      setGpsLoading(false);
+    }
+  };
+
+  // 🔹 7. สั่งให้ดึง GPS ทันทีที่เข้าหน้านี้
+  useEffect(() => {
+    getUserLocation();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "incidentTypes"), orderBy("label", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const typesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        label: doc.data().label
+      }));
+      setIncidentTypes(typesData);
+    }, (error) => {
+      console.error("Error fetching incident types: ", error);
+      setIncidentTypes([
+        { id: "fire", label: "ไฟไหม้" },
+        { id: "accident", label: "อุบัติเหตุ" },
+        { id: "other", label: "อื่นๆ" }
+      ]);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!position) return;
@@ -125,14 +177,13 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
         imageUrl = await getDownloadURL(imageRef);
       }
       
-      // 🔹 3. เพิ่ม userId ลงในฐานข้อมูล
       await addDoc(collection(db, "incidents"), {
         ...form,
         imageUrl,
         coordinates: { lat: position[0], lng: position[1] },
         status: "กำลังตรวจสอบ",
         createdAt: Timestamp.now(),
-        userId: user?.uid || "anonymous", // เก็บ UID ของผู้แจ้ง
+        userId: user?.uid || "anonymous", 
       });
       
       alert("ส่งข้อมูลเรียบร้อยแล้ว");
@@ -188,7 +239,7 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
                 sx={inputStyle}
               >
                 {incidentTypes.map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>
+                  <MenuItem key={opt.id} value={opt.label}>
                     {opt.label}
                   </MenuItem>
                 ))}
@@ -228,9 +279,24 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
                 sx={inputStyle}
               />
 
-              <Typography variant="body2" sx={{ color: isDark ? "#94a3b8" : "text.secondary", mt: 2, mb: 1 }}>
-                📍 คลิกบนแผนที่เพื่อเลือกตำแหน่งเกิดเหตุ
-              </Typography>
+              {/* 🔹 8. จัดหน้าตาแผนที่และปุ่ม GPS ใหม่ให้อยู่คู่กัน */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mt: 2, mb: 1 }}>
+                <Typography variant="body2" sx={{ color: isDark ? "#94a3b8" : "text.secondary", fontWeight: "bold" }}>
+                  📍 ระบุตำแหน่งเกิดเหตุ
+                </Typography>
+                <Tooltip title="ดึงตำแหน่งปัจจุบันของคุณ">
+                  <Button 
+                    size="small" 
+                    variant="outlined"
+                    disabled={gpsLoading}
+                    startIcon={gpsLoading ? <CircularProgress size={16} color="inherit" /> : <MyLocationIcon />}
+                    onClick={getUserLocation}
+                    sx={{ borderRadius: "999px", textTransform: "none", fontSize: "0.8rem", py: 0.5 }}
+                  >
+                    ตำแหน่งของฉัน
+                  </Button>
+                </Tooltip>
+              </Box>
 
               <Box sx={{ 
                 height: 280, 
@@ -240,11 +306,12 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
                 border: isDark ? "2px solid #334155" : "1px solid #ddd"
               }}>
                 <MapContainer
-                  center={[18.8976, 99.0157]}
+                  center={mapCenter} // 🔹 ใช้ mapCenter
                   zoom={15}
                   style={{ height: "100%", width: "100%" }}
                 >
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <MapUpdater center={mapCenter} /> {/* 🔹 Component ให้กล้องเลื่อนตาม */}
                   <LocationPicker setPosition={setPosition} />
                   {position && <Marker position={position} />}
                 </MapContainer>

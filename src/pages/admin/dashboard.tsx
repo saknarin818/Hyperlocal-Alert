@@ -21,6 +21,7 @@ import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import GroupIcon from "@mui/icons-material/Group";
 import OnlinePredictionIcon from "@mui/icons-material/OnlinePrediction";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import CategoryIcon from "@mui/icons-material/Category"; // 🔹 เพิ่มไอคอนนี้
 
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
@@ -37,8 +38,8 @@ import {
 import AdminNavbar from "../../components/admin/AdminNavbar";
 import IncidentsChart from "../../components/IncidentsChart";
 import AdminIncidentTable from "../../components/admin/AdminIncidentTable";
-// 🔹 Import Component ใหม่ที่เราเพิ่งสร้าง
 import AdminUserTable, { UserData } from "../../components/admin/AdminUserTable";
+import AdminIncidentTypes from "../../components/admin/AdminIncidentTypes"; // 🔹 นำเข้าคอมโพเนนต์จัดการประเภทเหตุการณ์
 
 type AdminDashboardProps = {
   mode: "light" | "dark";
@@ -55,7 +56,6 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
   const isDark = mode === "dark";
 
   const [incidents, setIncidents] = useState<any[]>([]);
-  // 🔹 ระบุ Type UserData ให้กับ State 
   const [usersList, setUsersList] = useState<UserData[]>([]); 
   const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState(0);
@@ -95,15 +95,13 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
       });
     });
 
-    // 3. ดึงข้อมูลผู้ใช้งานทั้งหมด (Real-time)
+    // 3. ดึงข้อมูลผู้ใช้งานทั้งหมด
     const qUsers = query(collection(db, "users"), orderBy("createdAt", "desc"));
     const unsubUsers = onSnapshot(qUsers, (snap) => {
-      // 🔹 ใช้ Type UserData ตรงนี้
       const fetchedUsers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
       setUsersList(fetchedUsers);
       setTotalUsers(fetchedUsers.length);
 
-      // คำนวณคนที่ออนไลน์ (อัปเดตภายใน 5 นาทีที่ผ่านมา)
       const fiveMinsAgo = Date.now() - 5 * 60 * 1000;
       const onlineCount = fetchedUsers.filter(u => {
         if (!u.lastOnline) return false;
@@ -150,45 +148,17 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
         </Typography>
 
         {/* ================= SUMMARY CARDS ================= */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(5, 1fr)" },
-            gap: 2,
-            mb: 5,
-          }}
-        >
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(5, 1fr)" }, gap: 2, mb: 5 }}>
           {summaryCards.map((item, index) => (
-            <Card key={index} sx={{ 
-              bgcolor: isDark ? "#1e293b" : "#fff", 
-              color: isDark ? "#fff" : "text.primary",
-              borderRadius: 4, 
-              border: isDark ? `1px solid ${alpha(item.color, 0.3)}` : "none",
-              boxShadow: isDark ? "none" : "0 4px 12px rgba(0,0,0,0.05)",
-              overflow: "hidden",
-              position: "relative"
-            }}>
+            <Card key={index} sx={{ bgcolor: isDark ? "#1e293b" : "#fff", color: isDark ? "#fff" : "text.primary", borderRadius: 4, border: isDark ? `1px solid ${alpha(item.color, 0.3)}` : "none", boxShadow: isDark ? "none" : "0 4px 12px rgba(0,0,0,0.05)", overflow: "hidden", position: "relative" }}>
               <CardContent sx={{ p: 2.5 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <Box>
-                    <Typography variant="caption" sx={{ color: isDark ? "#94a3b8" : "text.secondary", fontWeight: 600 }}>
-                      {item.label}
-                    </Typography>
-                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.5 }}>
-                      {item.value}
-                    </Typography>
+                    <Typography variant="caption" sx={{ color: isDark ? "#94a3b8" : "text.secondary", fontWeight: 600 }}>{item.label}</Typography>
+                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.5 }}>{item.value}</Typography>
                   </Box>
-                  <Box sx={{ 
-                    p: 1, 
-                    borderRadius: 2, 
-                    bgcolor: alpha(item.color, 0.1), 
-                    color: item.color,
-                    display: "flex",
-                    alignItems: "center"
-                  }}>
-                    {React.isValidElement(item.icon) && 
-                      React.cloneElement(item.icon as React.ReactElement<any>, { fontSize: "medium" })
-                    }
+                  <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(item.color, 0.1), color: item.color, display: "flex", alignItems: "center" }}>
+                    {React.isValidElement(item.icon) && React.cloneElement(item.icon as React.ReactElement<any>, { fontSize: "medium" })}
                   </Box>
                 </Box>
                 <Box sx={{ position: "absolute", bottom: 0, left: 0, width: "100%", height: 4, bgcolor: item.color }} />
@@ -198,14 +168,7 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
         </Box>
 
         {/* ================= TABS ================= */}
-        <Box sx={{ 
-          bgcolor: isDark ? "#1e293b" : "#fff",
-          borderRadius: 4,
-          p: 1,
-          mb: 4,
-          border: isDark ? "1px solid #334155" : "none",
-          boxShadow: isDark ? "none" : "0 4px 20px rgba(0,0,0,0.05)"
-        }}>
+        <Box sx={{ bgcolor: isDark ? "#1e293b" : "#fff", borderRadius: 4, p: 1, mb: 4, border: isDark ? "1px solid #334155" : "none", boxShadow: isDark ? "none" : "0 4px 20px rgba(0,0,0,0.05)" }}>
           <Tabs
             value={currentTab}
             onChange={(_e, val) => setCurrentTab(val)}
@@ -213,20 +176,12 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
             scrollButtons="auto"
             textColor="primary"
             indicatorColor="primary"
-            sx={{ 
-                "& .MuiTab-root": { 
-                    fontWeight: 700, 
-                    borderRadius: 3,
-                    minHeight: 50,
-                    color: isDark ? "#94a3b8" : "text.secondary",
-                    "&.Mui-selected": { color: "#38bdf8" }
-                },
-                "& .MuiTabs-indicator": { height: 3, borderRadius: "3px 3px 0 0", bgcolor: "#38bdf8" }
-            }}
+            sx={{ "& .MuiTab-root": { fontWeight: 700, borderRadius: 3, minHeight: 50, color: isDark ? "#94a3b8" : "text.secondary", "&.Mui-selected": { color: "#38bdf8" } }, "& .MuiTabs-indicator": { height: 3, borderRadius: "3px 3px 0 0", bgcolor: "#38bdf8" } }}
           >
             <Tab icon={<FormatListBulletedIcon />} iconPosition="start" label="รายการแจ้งเหตุ" />
             <Tab icon={<InsertChartIcon />} iconPosition="start" label="กราฟสถิติ" />
             <Tab icon={<AccountCircleIcon />} iconPosition="start" label="ผู้ใช้งานระบบ" />
+            <Tab icon={<CategoryIcon />} iconPosition="start" label="ตั้งค่าประเภทเหตุการณ์" /> {/* 🔹 เพิ่มแท็บที่ 4 ตรงนี้ */}
           </Tabs>
         </Box>
 
@@ -235,19 +190,15 @@ export default function AdminDashboard({ mode, toggleTheme }: AdminDashboardProp
           {currentTab === 0 && <AdminIncidentTable incidents={incidents} loading={loading} />}
           
           {currentTab === 1 && (
-            <Box sx={{ 
-              bgcolor: isDark ? "#1e293b" : "#fff", 
-              p: 3, 
-              borderRadius: 4, 
-              border: isDark ? "1px solid #334155" : "none",
-              animation: "fadeIn 0.5s ease" 
-            }}>
+            <Box sx={{ bgcolor: isDark ? "#1e293b" : "#fff", p: 3, borderRadius: 4, border: isDark ? "1px solid #334155" : "none", animation: "fadeIn 0.5s ease" }}>
                <IncidentsChart incidents={incidents} loading={loading} />
             </Box>
           )}
 
-          {/* 🔹 เรียกใช้งาน Component ที่เราแยกไว้ */}
-          {currentTab === 2 && <AdminUserTable usersList={usersList} isDark={isDark} />}
+          {currentTab === 2 && <AdminUserTable usersList={usersList} isDark={isDark} incidents={incidents} />}
+
+          {/* 🔹 เรียกใช้งานหน้าจอตั้งค่าเมื่อผู้ใช้กดมาที่แท็บที่ 4 (index 3) */}
+          {currentTab === 3 && <AdminIncidentTypes isDark={isDark} />}
 
         </Box>
       </Container>

@@ -1,5 +1,5 @@
 import {setGlobalOptions} from "firebase-functions/v2";
-// import {onRequest} from "firebase-functions/v2/https";
+import {onRequest} from "firebase-functions/v2/https";
 import {onDocumentUpdated, onDocumentCreated} from "firebase-functions/v2/firestore";
 // import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
@@ -145,5 +145,182 @@ export const notifyonincidentapproval = onDocumentUpdated("incidents/{incidentId
       );
     }
   });
-  await Promise.all(tokensToRemove);
+// ==============================================================
+// 3. 🔥 HTTPS Function: ส่ง Notification แบบ Manual (สำหรับ Admin)
+// ==============================================================
+export const sendNotification = onRequest(async (req, res) => {
+  // ตรวจสอบ Authentication (ต้องเป็น Admin)
+  const user = req.headers["authorization"];
+  if (!user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const { userId, title, body, data } = req.body;
+  
+  if (!userId || !title || !body) {
+    res.status(400).json({ error: "Missing required fields: userId, title, body" });
+    return;
+  }
+
+  try {
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    if (!userDoc.exists) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const userData = userDoc.data();
+    const tokens: string[] = userData?.fcmTokens || [];
+
+    if (tokens.length === 0) {
+      res.status(400).json({ error: "User has no notification tokens" });
+      return;
+    }
+
+    const message: admin.messaging.MulticastMessage = {
+      tokens,
+      notification: {
+        title,
+        body,
+      },
+      data: {
+        ...data,
+        sentAt: new Date().toISOString()
+      },
+      webpush: {
+        notification: { icon: "https://hyperlocal-alert.web.app/LOGO_CAS.png" },
+        fcmOptions: { link: "https://hyperlocal-alert.web.app/event" },
+      },
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+
+    // บันทึกการส่ง
+    await admin.firestore().collection("notifications").add({
+      userId,
+      title,
+      body,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      successCount: response.successCount,
+      failureCount: response.failureCount
+    });
+
+    // ลบ Token ที่พัง
+    const tokensToRemove: Promise<any>[] = [];
+    response.responses.forEach((result, index) => {
+      if (result.error && (result.error.code === "messaging/invalid-registration-token" || result.error.code === "messaging/registration-token-not-registered")) {
+        tokensToRemove.push(
+          admin.firestore().collection("users").doc(userId).update({
+            fcmTokens: admin.firestore.FieldValue.arrayRemove(tokens[index])
+          })
+        );
+      }
+    });
+    await Promise.all(tokensToRemove);
+
+    res.status(200).json({ 
+      success: true, 
+      successCount: response.successCount,
+      failureCount: response.failureCount
+    });
+  } catch (err) {
+    console.error("Error sending notification:", err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ==============================================================
+// 4. 🔥 HTTPS Function: ส่ง Notification ไปหลาย User (Broadcast)
+// ==============================================================
+export const broadcastNotification = onRequest(async (req, res) => {
+  // ตรวจสอบ Authentication
+  const user = req.headers["authorization"];
+  if (!user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const { title, body, data, userIds } = req.body;
+  
+  if (!title || !body || !userIds || !Array.isArray(userIds)) {
+    res.status(400).json({ error: "Missing required fields: title, body, userIds (array)" });
+    return;
+  }
+
+  try {
+    const allTokens: string[] = [];
+    const tokenToUserId: Record<string, string> = {};
+
+    // เก็บ tokens ทั้งหมดจาก users
+    for (const userId of userIds) {
+      const userDoc = await admin.firestore().collection("users").doc(userId).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        const tokens: string[] = userData?.fcmTokens || [];
+        tokens.forEach(token => {
+          allTokens.push(token);
+          tokenToUserId[token] = userId;
+        });
+      }
+    }
+
+    if (allTokens.length === 0) {
+      res.status(400).json({ error: "No notification tokens found for these users" });
+      return;
+    }
+
+    const message: admin.messaging.MulticastMessage = {
+      tokens: allTokens,
+      notification: {
+        title,
+        body,
+      },
+      data: {
+        ...data,
+        sentAt: new Date().toISOString()
+      },
+      webpush: {
+        notification: { icon: "https://hyperlocal-alert.web.app/LOGO_CAS.png" },
+        fcmOptions: { link: "https://hyperlocal-alert.web.app/event" },
+      },
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+
+    // บันทึกการส่ง
+    await admin.firestore().collection("notifications").add({
+      title,
+      body,
+      recipients: userIds,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      successCount: response.successCount,
+      failureCount: response.failureCount
+    });
+
+    // ลบ Token ที่พัง
+    const tokensToRemove: Promise<any>[] = [];
+    response.responses.forEach((result, index) => {
+      if (result.error && (result.error.code === "messaging/invalid-registration-token" || result.error.code === "messaging/registration-token-not-registered")) {
+        const userId = tokenToUserId[allTokens[index]];
+        if (userId) {
+          tokensToRemove.push(
+            admin.firestore().collection("users").doc(userId).update({
+              fcmTokens: admin.firestore.FieldValue.arrayRemove(allTokens[index])
+            })
+          );
+        }
+      }
+    });
+    await Promise.all(tokensToRemove);
+
+    res.status(200).json({ 
+      success: true,
+      successCount: response.successCount,
+      failureCount: response.failureCount
+    });
+  } catch (err) {
+    console.error("Error broadcasting notification:", err);
+    res.status(500).json({ error: String(err) });
+  }
 });

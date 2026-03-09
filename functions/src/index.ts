@@ -145,6 +145,13 @@ export const notifyonincidentapproval = onDocumentUpdated("incidents/{incidentId
       );
     }
   });
+
+  // 👇 สิ่งที่เติมเข้ามา: สั่งรอให้ลบ Token เสร็จ และปิดฟังก์ชันที่ 2
+  if (tokensToRemove.length > 0) {
+    await Promise.all(tokensToRemove);
+  }
+}); 
+
 // ==============================================================
 // 3. 🔥 HTTPS Function: ส่ง Notification แบบ Manual (สำหรับ Admin)
 // ==============================================================

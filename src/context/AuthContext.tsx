@@ -3,8 +3,8 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
-// 👉 1. นำเข้าฟังก์ชันสำหรับขอสิทธิ์แจ้งเตือน
-import { registerForPush } from "../pushNotifications"; 
+// 👉 นำเข้าฟังก์ชันสำหรับขอสิทธิ์แจ้งเตือน
+import { registerForPush, unregisterAllTokens } from "../pushNotifications"; 
 
 type AuthContextType = {
   user: User | null;
@@ -74,9 +74,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setRole("user");
         }
       } else {
-        // กรณีล็อกเอาท์ 
+        // 🔴 กรณีล็อกเอาท์ - ลบ token ทั้งหมด
         setUser(null);
         setRole(null);
+        
+        // 🔔 ลบ FCM token ทั้งหมด
+        try {
+          await unregisterAllTokens();
+        } catch (err) {
+          console.error("Error unregistering tokens on logout:", err);
+        }
+        
         if (onlineInterval) clearInterval(onlineInterval); 
       }
       setLoading(false);

@@ -28,13 +28,20 @@ function App({ mode, toggleTheme }: AppProps) {
   const [snackOpen, setSnackOpen] = useState(false);
 
   useEffect(() => {
-    onForegroundMessage((payload) => {
+    // ตั้งค่า listener สำหรับ foreground messages
+    const unsubscribe = onForegroundMessage((payload) => {
       const { title, body } = payload.notification || {};
       if (title && body) {
         setNotification({ title, body });
         setSnackOpen(true);
       }
     });
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const handleSnackClose = () => setSnackOpen(false);
@@ -67,10 +74,12 @@ function App({ mode, toggleTheme }: AppProps) {
         </Routes>
       </Router>
 
-      {/* แจ้งเตือน Push Notification (แสดงผลเมื่อเปิดแอปอยู่) */}
+      {/* 🔔 Notification สำเร็จ (แสดงผลเมื่อเปิดแอปอยู่) */}
       <Snackbar open={snackOpen} autoHideDuration={6000} onClose={handleSnackClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
         <Alert onClose={handleSnackClose} severity="info" sx={{ width: '100%' }}>
-          <strong>{notification?.title}</strong><br />{notification?.body}
+          <strong>{notification?.title}</strong>
+          <br />
+          {notification?.body}
         </Alert>
       </Snackbar>
     </AuthProvider>

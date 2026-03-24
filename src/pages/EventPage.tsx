@@ -41,6 +41,7 @@ type Incident = {
     lat: number;
     lng: number;
   };
+  reporterName?: string; // 🔹 เพิ่มบรรทัดนี้
 };
 
 /* -------------------- LABEL -------------------- */
@@ -115,14 +116,18 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
 
   /* -------------------- FILTER LOGIC -------------------- */
   // 🔹 แก้ไขตรรกะ: เรียง 'other' ไว้ล่างสุด และที่เหลือเรียงตามอักษรไทย
-  const categories = Array.from(new Set(events.map((ev) => ev.type))).sort((a, b) => {
-    if (a === "other") return 1;  // a เป็น other ให้ไปอยู่หลัง
-    if (b === "other") return -1; // b เป็น other ให้ a อยู่ก่อน
-    return getTypeLabel(a).localeCompare(getTypeLabel(b), "th");
+
+  const categories = Array.from(new Set(events.map((ev) => getTypeLabel(ev.type)))).sort((a, b) => {
+    const otherLabel = getTypeLabel("other"); // "เหตุการณ์อื่น ๆ"
+    if (a === otherLabel) return 1;  // ถ้าเป็น other ให้ไปอยู่หลังสุด
+    if (b === otherLabel) return -1; 
+    return a.localeCompare(b, "th");
   });
 
   const filteredEvents = events.filter((ev) => {
-    const matchType = selectedType === "all" || ev.type === selectedType;
+    // 🔹 เปลี่ยนมาเทียบ selectedType กับ getTypeLabel(ev.type)
+    const matchType = selectedType === "all" || getTypeLabel(ev.type) === selectedType;
+    
     const keyword = searchText.toLowerCase();
     const matchSearch =
       getTypeLabel(ev.type).toLowerCase().includes(keyword) ||
@@ -310,6 +315,18 @@ export default function EventPage({ mode, toggleTheme }: EventPageProps) {
                 <Box>
                   <Typography variant="caption" sx={{ color: "#38bdf8", fontWeight: 800 }}>📞 ข้อมูลติดต่อ</Typography>
                   <Typography variant="body2">{selectedEvent.contact || "-"}</Typography>
+                </Box>
+                
+                {/* 🔹 เพิ่มกล่องแสดงชื่อผู้แจ้งตรงนี้ (ให้กินพื้นที่ 2 คอลัมน์จะได้เต็มบรรทัดสวยงาม) */}
+                {/* 🔹 กล่องแสดงชื่อผู้แจ้ง */}
+                <Box sx={{ gridColumn: "span 2", mt: 1 }}>
+                  <Typography variant="caption" sx={{ color: "#38bdf8", fontWeight: 800 }}>👤 ผู้แจ้งเหตุ</Typography>
+                  <Typography variant="body2">
+                    {/* 🔹 ถ้าไม่มีค่า หรือมีค่าเป็นคำว่า "undefined" ให้โชว์คำว่า ผู้ใช้งานทั่วไป แทน */}
+                    {!selectedEvent.reporterName || selectedEvent.reporterName === "undefined" 
+                      ? "ผู้ใช้งานทั่วไป" 
+                      : selectedEvent.reporterName}
+                  </Typography>
                 </Box>
               </Box>
 

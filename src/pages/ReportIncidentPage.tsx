@@ -120,14 +120,34 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
     getUserLocation();
   }, []);
 
+  // 🔹 ดึงข้อมูลประเภทเหตุการณ์ และจัดการตัวซ้ำ + เอา "อื่นๆ" ไว้ล่างสุด
   useEffect(() => {
-    const q = query(collection(db, "incidentTypes"), orderBy("label", "asc"));
+    const q = query(collection(db, "incidentTypes"));
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const typesData = snapshot.docs.map(doc => ({
         id: doc.id,
-        label: doc.data().label
+        label: doc.data().label.trim()
       }));
-      setIncidentTypes(typesData);
+
+      // กำจัดตัวซ้ำ
+      const uniqueTypesMap = new Map();
+      typesData.forEach(item => {
+        if (!uniqueTypesMap.has(item.label)) {
+          uniqueTypesMap.set(item.label, item);
+        }
+      });
+      const uniqueTypes = Array.from(uniqueTypesMap.values());
+
+      // เรียง ก-ฮ ตามภาษาไทย
+      uniqueTypes.sort((a, b) => a.label.localeCompare(b.label, 'th'));
+
+      // แยก "อื่น" ไปไว้ล่างสุด
+      const normalTypes = uniqueTypes.filter(t => !t.label.includes("อื่น"));
+      const otherTypes = uniqueTypes.filter(t => t.label.includes("อื่น"));
+
+      setIncidentTypes([...normalTypes, ...otherTypes]);
+      
     }, (error) => {
       console.error("Error fetching incident types: ", error);
       setIncidentTypes([
@@ -177,6 +197,9 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
         imageUrl = await getDownloadURL(imageRef);
       }
       
+     // 🔹 ดึงชื่อผู้ใช้ออกมาเช็คก่อน ถ้าเป็น null, undefined หรือ string ว่าง ให้บังคับใช้คำว่า "ผู้ใช้งานทั่วไป"
+      const reporter = user?.displayName?.trim() || user?.email?.trim() || "ผู้ใช้งานทั่วไป";
+
       await addDoc(collection(db, "incidents"), {
         ...form,
         imageUrl,
@@ -184,6 +207,7 @@ export default function ReportIncidentPage({ mode, toggleTheme }: PageProps) {
         status: "กำลังตรวจสอบ",
         createdAt: Timestamp.now(),
         userId: user?.uid || "anonymous", 
+        reporterName: reporter, // 🔹 ใช้ตัวแปรที่เราเช็คมาแล้ว
       });
       
       alert("ส่งข้อมูลเรียบร้อยแล้ว");

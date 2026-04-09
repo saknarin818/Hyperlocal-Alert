@@ -48,9 +48,10 @@ export default function EventFilter({
           onChange={(e) => onTypeChange(e.target.value)}
         >
           <MenuItem value="all">ทั้งหมด</MenuItem>
-          {categories.map((type) => (
-            <MenuItem key={type} value={type}>
-              {getTypeLabel(type)}
+          {categories.map((categoryLabel) => (
+            // 🔹 ใช้ categoryLabel เป็นทั้ง value และ text แสดงผล
+            <MenuItem key={categoryLabel} value={categoryLabel}>
+              {categoryLabel}
             </MenuItem>
           ))}
         </Select>

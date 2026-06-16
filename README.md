@@ -46,7 +46,7 @@ npm install
 ` ` `
 
 **3. ติดตั้ง Dependencies ของ Firebase Functions**
-ฟังก์ชันการทำงานเบื้องหลังอยู่ในโฟลเดอร์ `functions`[cite: 2]
+ฟังก์ชันการทำงานเบื้องหลังอยู่ในโฟลเดอร์ `functions`
 ` ` `bash
 cd functions
 npm install
@@ -54,7 +54,7 @@ cd ..
 ` ` `
 
 **4. ตั้งค่า Environment Variables**
-แก้ไขไฟล์ `.env` ที่โฟลเดอร์หลัก[cite: 2] และใส่ข้อมูล Configuration ของ Firebase รวมถึง VAPID Key สำหรับการแจ้งเตือน:
+แก้ไขไฟล์ `.env` ที่โฟลเดอร์หลัก และใส่ข้อมูล Configuration ของ Firebase รวมถึง VAPID Key สำหรับการแจ้งเตือน:
 ` ` `env
 REACT_APP_VAPID_KEY=ใส่คีย์_VAPID_จาก_Firebase_ที่นี่
 # ใส่ค่า Config อื่นๆ เพิ่มเติมตามที่ใช้ในไฟล์ src/firebase.ts
@@ -76,12 +76,12 @@ firebase emulators:start
 
 ## 📂 โครงสร้างโฟลเดอร์ที่สำคัญ (Project Structure)
 
-- `/src/components/` - คอมโพเนนต์ที่ใช้ซ้ำได้ เช่น Navbar, EventCard, Maps, และ Charts[cite: 2]
-- `/src/components/admin/` - คอมโพเนนต์เฉพาะสำหรับระบบหลังบ้าน (Admin Tables)[cite: 2]
-- `/src/pages/` - หน้าจอหลักของแอปพลิเคชัน เช่น หน้าแรก, เข้าสู่ระบบ, รายงานเหตุการณ์ ฯลฯ[cite: 2]
-- `/src/context/` - การจัดการ State ส่วนกลาง เช่น `AuthContext`[cite: 2]
+- `/src/components/` - คอมโพเนนต์ที่ใช้ซ้ำได้ เช่น Navbar, EventCard, Maps, และ Charts
+- `/src/components/admin/` - คอมโพเนนต์เฉพาะสำหรับระบบหลังบ้าน (Admin Tables)
+- `/src/pages/` - หน้าจอหลักของแอปพลิเคชัน เช่น หน้าแรก, เข้าสู่ระบบ, รายงานเหตุการณ์ ฯลฯ
+- `/src/context/` - การจัดการ State ส่วนกลาง เช่น `AuthContext`
 - `/functions/` - โค้ดของ Firebase Cloud Functions (เขียนด้วย TypeScript)[cite: 2]
-- `/public/` - ไฟล์ Static และ `firebase-messaging-sw.js` สำหรับจัดการ Push Notifications[cite: 2]
+- `/public/` - ไฟล์ Static และ `firebase-messaging-sw.js` สำหรับจัดการ Push Notifications
 
 ---
 

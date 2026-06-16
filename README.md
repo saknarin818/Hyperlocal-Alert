@@ -1,43 +1,43 @@
 # Hyperlocal Alert 🚨
 
-Hyperlocal Alert เป็นเว็บแอปพลิเคชันที่ออกแบบมาเพื่อการรายงาน ตรวจสอบ และแจ้งเตือนเหตุการณ์ต่างๆ ในระดับพื้นที่ (Hyperlocal) แบบเรียลไทม์[cite: 2] พัฒนาด้วย **React** และ **TypeScript** โดยทำงานร่วมกับระบบ Backend และฐานข้อมูลของ **Firebase**[cite: 2] พร้อมทั้งมีระบบ Dashboard สำหรับผู้ดูแลระบบเพื่อจัดการข้อมูลอย่างเป็นระเบียบ[cite: 2]
+Hyperlocal Alert เป็นเว็บแอปพลิเคชันที่ออกแบบมาเพื่อการรายงาน ตรวจสอบ และแจ้งเตือนเหตุการณ์ต่างๆ ในระดับพื้นที่ (Hyperlocal) แบบเรียลไทม์ พัฒนาด้วย **React** และ **TypeScript** โดยทำงานร่วมกับระบบ Backend และฐานข้อมูลของ **Firebase** พร้อมทั้งมีระบบ Dashboard สำหรับผู้ดูแลระบบเพื่อจัดการข้อมูลอย่างเป็นระเบียบ
 
 ---
 
 ## 🚀 ฟีเจอร์หลัก (Key Features)
 
-- **User Authentication:** รองรับระบบเข้าสู่ระบบ (Login), สมัครสมาชิก (Register), ลืมรหัสผ่าน (Forgot Password) และหน้าจัดการโปรไฟล์ผู้ใช้งาน[cite: 2]
-- **Incident Management:** ผู้ใช้สามารถรายงานเหตุการณ์ที่เกิดขึ้นในพื้นที่ได้ผ่านหน้า Report Incident[cite: 2]
-- **Real-time Map & Data Visualization:** 
-  - ดูเหตุการณ์ที่เกิดขึ้นบนแผนที่แบบ Interactive (`EventMapDialog`)[cite: 2]
-  - ดูกราฟสถิติเหตุการณ์ (`IncidentsChart`)[cite: 2]
-  - ดูรายการเหตุการณ์ล่าสุดพร้อมตัวกรองเวลา (`LatestIncidents`, `TimeFilter`, `EventFilter`)[cite: 2]
-- **Push Notifications:** มีระบบแจ้งเตือนข่าวสารแบบพุช (Push Notifications) โดยทำงานผ่าน Firebase Cloud Messaging (FCM) และ Service Worker[cite: 2]
-- **Admin Dashboard:** พื้นที่เฉพาะสำหรับผู้ดูแลระบบ เพื่อจัดการบัญชีผู้ใช้งาน, ตารางเหตุการณ์, และประเภทของเหตุการณ์ต่างๆ[cite: 2]
-- **Route Protection:** ระบบจำกัดสิทธิ์การเข้าถึงหน้าเว็บ (Private/Protected Routes) สำหรับผู้ใช้งานที่ล็อกอินแล้วและผู้ดูแลระบบ[cite: 2]
+- **User Authentication:** รองรับระบบเข้าสู่ระบบ (Login), สมัครสมาชิก (Register), ลืมรหัสผ่าน (Forgot Password) และหน้าจัดการโปรไฟล์ผู้ใช้งาน
+- **Incident Management:** ผู้ใช้สามารถรายงานเหตุการณ์ที่เกิดขึ้นในพื้นที่ได้ผ่านหน้า Report Incident
+- **Real-time Map & Data Visualization:**
+  - ดูเหตุการณ์ที่เกิดขึ้นบนแผนที่แบบ Interactive (`EventMapDialog`)
+  - ดูกราฟสถิติเหตุการณ์ (`IncidentsChart`)
+  - ดูรายการเหตุการณ์ล่าสุดพร้อมตัวกรองเวลา (`LatestIncidents`, `TimeFilter`, `EventFilter`)
+- **Push Notifications:** มีระบบแจ้งเตือนข่าวสารแบบพุช (Push Notifications) โดยทำงานผ่าน Firebase Cloud Messaging (FCM) และ Service Worker
+- **Admin Dashboard:** พื้นที่เฉพาะสำหรับผู้ดูแลระบบ เพื่อจัดการบัญชีผู้ใช้งาน, ตารางเหตุการณ์, และประเภทของเหตุการณ์ต่างๆ
+- **Route Protection:** ระบบจำกัดสิทธิ์การเข้าถึงหน้าเว็บ (Private/Protected Routes) สำหรับผู้ใช้งานที่ล็อกอินแล้วและผู้ดูแลระบบ
 
 ---
 
 ## 🛠️ เทคโนโลยีที่ใช้ (Tech Stack)
 
-- **Frontend:** React, TypeScript, React Router[cite: 2]
+- **Frontend:** React, TypeScript, React Router
 - **Backend & Services (Firebase):**
-  - Firebase Authentication[cite: 2]
-  - Firestore / Realtime Database[cite: 2]
-  - Firebase Cloud Messaging (FCM) สำหรับ Web Push Notifications[cite: 2]
-  - Firebase Cloud Functions สำหรับประมวลผล API เบื้องหลัง[cite: 2]
-  - Firebase Hosting สำหรับการนำระบบขึ้นใช้งานจริง[cite: 2]
+  - Firebase Authentication
+  - Firestore / Realtime Database
+  - Firebase Cloud Messaging (FCM) สำหรับ Web Push Notifications
+  - Firebase Cloud Functions สำหรับประมวลผล API เบื้องหลัง
+  - Firebase Hosting สำหรับการนำระบบขึ้นใช้งานจริง
 
 ---
 
 ## ⚙️ ขั้นตอนการติดตั้งและรันโปรเจกต์ (Installation & Setup)
 
-กรุณาตรวจสอบให้แน่ใจว่าในเครื่องของคุณมีการติดตั้ง **Node.js** และ **Firebase CLI** เรียบร้อยแล้ว[cite: 2]
+กรุณาตรวจสอบให้แน่ใจว่าในเครื่องของคุณมีการติดตั้ง **Node.js** และ **Firebase CLI** เรียบร้อยแล้ว
 
 **1. Clone โปรเจกต์ลงมาที่เครื่องของคุณ**
 ` ` `bash
-git clone https://github.com/your-username/Hyperlocal-Alert.git
-cd Hyperlocal-Alert
+git clone [https://github.com/saknarin818/hyperlocal-alert.git](https://github.com/saknarin818/hyperlocal-alert.git)
+cd hyperlocal-alert
 ` ` `
 
 **2. ติดตั้ง Dependencies ของ Frontend**

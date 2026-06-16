@@ -1,46 +1,89 @@
-# Getting Started with Create React App
+# Hyperlocal Alert 🚨
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Hyperlocal Alert เป็นเว็บแอปพลิเคชันที่ออกแบบมาเพื่อการรายงาน ตรวจสอบ และแจ้งเตือนเหตุการณ์ต่างๆ ในระดับพื้นที่ (Hyperlocal) แบบเรียลไทม์[cite: 2] พัฒนาด้วย **React** และ **TypeScript** โดยทำงานร่วมกับระบบ Backend และฐานข้อมูลของ **Firebase**[cite: 2] พร้อมทั้งมีระบบ Dashboard สำหรับผู้ดูแลระบบเพื่อจัดการข้อมูลอย่างเป็นระเบียบ[cite: 2]
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🚀 ฟีเจอร์หลัก (Key Features)
 
-### `npm start`
+- **User Authentication:** รองรับระบบเข้าสู่ระบบ (Login), สมัครสมาชิก (Register), ลืมรหัสผ่าน (Forgot Password) และหน้าจัดการโปรไฟล์ผู้ใช้งาน[cite: 2]
+- **Incident Management:** ผู้ใช้สามารถรายงานเหตุการณ์ที่เกิดขึ้นในพื้นที่ได้ผ่านหน้า Report Incident[cite: 2]
+- **Real-time Map & Data Visualization:** 
+  - ดูเหตุการณ์ที่เกิดขึ้นบนแผนที่แบบ Interactive (`EventMapDialog`)[cite: 2]
+  - ดูกราฟสถิติเหตุการณ์ (`IncidentsChart`)[cite: 2]
+  - ดูรายการเหตุการณ์ล่าสุดพร้อมตัวกรองเวลา (`LatestIncidents`, `TimeFilter`, `EventFilter`)[cite: 2]
+- **Push Notifications:** มีระบบแจ้งเตือนข่าวสารแบบพุช (Push Notifications) โดยทำงานผ่าน Firebase Cloud Messaging (FCM) และ Service Worker[cite: 2]
+- **Admin Dashboard:** พื้นที่เฉพาะสำหรับผู้ดูแลระบบ เพื่อจัดการบัญชีผู้ใช้งาน, ตารางเหตุการณ์, และประเภทของเหตุการณ์ต่างๆ[cite: 2]
+- **Route Protection:** ระบบจำกัดสิทธิ์การเข้าถึงหน้าเว็บ (Private/Protected Routes) สำหรับผู้ใช้งานที่ล็อกอินแล้วและผู้ดูแลระบบ[cite: 2]
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+---
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## 🛠️ เทคโนโลยีที่ใช้ (Tech Stack)
 
-### `npm test`
+- **Frontend:** React, TypeScript, React Router[cite: 2]
+- **Backend & Services (Firebase):**
+  - Firebase Authentication[cite: 2]
+  - Firestore / Realtime Database[cite: 2]
+  - Firebase Cloud Messaging (FCM) สำหรับ Web Push Notifications[cite: 2]
+  - Firebase Cloud Functions สำหรับประมวลผล API เบื้องหลัง[cite: 2]
+  - Firebase Hosting สำหรับการนำระบบขึ้นใช้งานจริง[cite: 2]
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## ⚙️ ขั้นตอนการติดตั้งและรันโปรเจกต์ (Installation & Setup)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+กรุณาตรวจสอบให้แน่ใจว่าในเครื่องของคุณมีการติดตั้ง **Node.js** และ **Firebase CLI** เรียบร้อยแล้ว[cite: 2]
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+**1. Clone โปรเจกต์ลงมาที่เครื่องของคุณ**
+` ` `bash
+git clone https://github.com/your-username/Hyperlocal-Alert.git
+cd Hyperlocal-Alert
+` ` `
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+**2. ติดตั้ง Dependencies ของ Frontend**
+` ` `bash
+npm install
+` ` `
 
-### `npm run eject`
+**3. ติดตั้ง Dependencies ของ Firebase Functions**
+ฟังก์ชันการทำงานเบื้องหลังอยู่ในโฟลเดอร์ `functions`[cite: 2]
+` ` `bash
+cd functions
+npm install
+cd ..
+` ` `
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+**4. ตั้งค่า Environment Variables**
+แก้ไขไฟล์ `.env` ที่โฟลเดอร์หลัก[cite: 2] และใส่ข้อมูล Configuration ของ Firebase รวมถึง VAPID Key สำหรับการแจ้งเตือน:
+` ` `env
+REACT_APP_VAPID_KEY=ใส่คีย์_VAPID_จาก_Firebase_ที่นี่
+# ใส่ค่า Config อื่นๆ เพิ่มเติมตามที่ใช้ในไฟล์ src/firebase.ts
+` ` `
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+**5. เริ่มต้นการทำงาน (Run Locally)**
+` ` `bash
+npm start
+` ` `
+แอปพลิเคชันจะรันขึ้นมาที่ `http://localhost:3000` โดยอัตโนมัติ
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+**6. การทดสอบ Firebase Functions แบบ Local (Optional)**
+หากต้องการทดสอบ Cloud Functions ในเครื่อง[cite: 2] ให้เปิดเทอร์มินัลใหม่แล้วรัน:
+` ` `bash
+firebase emulators:start
+` ` `
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+---
 
-## Learn More
+## 📂 โครงสร้างโฟลเดอร์ที่สำคัญ (Project Structure)
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- `/src/components/` - คอมโพเนนต์ที่ใช้ซ้ำได้ เช่น Navbar, EventCard, Maps, และ Charts[cite: 2]
+- `/src/components/admin/` - คอมโพเนนต์เฉพาะสำหรับระบบหลังบ้าน (Admin Tables)[cite: 2]
+- `/src/pages/` - หน้าจอหลักของแอปพลิเคชัน เช่น หน้าแรก, เข้าสู่ระบบ, รายงานเหตุการณ์ ฯลฯ[cite: 2]
+- `/src/context/` - การจัดการ State ส่วนกลาง เช่น `AuthContext`[cite: 2]
+- `/functions/` - โค้ดของ Firebase Cloud Functions (เขียนด้วย TypeScript)[cite: 2]
+- `/public/` - ไฟล์ Static และ `firebase-messaging-sw.js` สำหรับจัดการ Push Notifications[cite: 2]
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
+
+## 📄 License
+โปรเจกต์นี้เป็นแบบ Open-source ภายใต้ลิขสิทธิ์ [MIT license](https://opensource.org/licenses/MIT).
